@@ -1,0 +1,218 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Check, X, RefreshCw, Send, Image, ExternalLink, Edit3, Save } from 'lucide-react';
+import { useToast } from '../components/Toast';
+import { getGeneratedPost, updateGeneratedPost, approveGeneratedPost, rejectGeneratedPost, publishGeneratedPost, regeneratePost, recomposeImage, getFbPages } from '../utils/api';
+import './StoryReviewPage.css';
+
+export default function StoryReviewPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { addToast } = useToast();
+  const [post, setPost] = useState(null);
+  const [pages, setPages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [editBody, setEditBody] = useState('');
+  const [publishing, setPublishing] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+
+  useEffect(() => {
+    loadPost();
+    getFbPages().then(r => setPages(r.data || [])).catch(() => {});
+  }, [id]);
+
+  const loadPost = async () => {
+    try {
+      const res = await getGeneratedPost(id);
+      setPost(res.data);
+      setEditBody(res.data.post_body || '');
+    } catch (err) {
+      addToast('Không tìm thấy bài viết', 'error');
+      navigate('/auto-content');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      await updateGeneratedPost(id, { post_body: editBody });
+      addToast('Đã lưu!', 'success');
+      setEditing(false);
+      loadPost();
+    } catch (err) {
+      addToast('Lỗi lưu', 'error');
+    }
+  };
+
+  const handleApprove = async () => {
+    try {
+      await approveGeneratedPost(id);
+      addToast('Đã duyệt bài!', 'success');
+      loadPost();
+    } catch { addToast('Lỗi', 'error'); }
+  };
+
+  const handleReject = async () => {
+    try {
+      await rejectGeneratedPost(id);
+      addToast('Đã từ chối bài', 'info');
+      loadPost();
+    } catch { addToast('Lỗi', 'error'); }
+  };
+
+  const handlePublish = async () => {
+    setPublishing(true);
+    try {
+      const res = await publishGeneratedPost(id);
+      addToast('Đã đăng lên Facebook!', 'success');
+      loadPost();
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Lỗi publish', 'error');
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    setRegenerating(true);
+    try {
+      await regeneratePost(id);
+      addToast('Đã tạo lại bài viết!', 'success');
+      loadPost();
+    } catch (err) {
+      addToast('Lỗi tạo lại', 'error');
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  const handlePageChange = async (pageId) => {
+    try {
+      await updateGeneratedPost(id, { fb_page_id: parseInt(pageId) });
+      loadPost();
+    } catch { addToast('Lỗi', 'error'); }
+  };
+
+  if (loading) return <div className="review-page"><div className="loading-spinner" style={{ width: 32, height: 32 }} /></div>;
+  if (!post) return null;
+
+  const story = post.story;
+  const fbPage = post.fbPage;
+
+  return (
+    <div className="review-page">
+      <div className="review-header">
+        <button className="btn-back" onClick={() => navigate('/auto-content')}>
+          <ArrowLeft size={18} /> Quay lại
+        </button>
+        <div className="review-actions">
+          <span className={`status-badge status-${post.status}`}>{post.status}</span>
+          {post.status === 'draft' && (
+            <>
+              <button className="btn-action btn-approve-lg" onClick={handleApprove}><Check size={16} /> Duyệt</button>
+              <button className="btn-action btn-reject-lg" onClick={handleReject}><X size={16} /> Từ chối</button>
+            </>
+          )}
+          {(post.status === 'draft' || post.status === 'approved') && (
+            <button className="btn-action btn-publish-lg" onClick={handlePublish} disabled={publishing}>
+              <Send size={16} /> {publishing ? 'Đang đăng...' : 'Publish'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="review-layout">
+        {/* Left: Preview */}
+        <div className="preview-col">
+          <div className="fb-preview-card">
+            <div className="fb-header">
+              {fbPage?.avatar_url && <img src={fbPage.avatar_url} alt="" className="fb-avatar" />}
+              <div>
+                <div className="fb-page-name">{fbPage?.name || 'Facebook Page'}</div>
+                <div className="fb-time">Vừa xong · 🌐</div>
+              </div>
+            </div>
+            <div className="fb-body">
+              {editing ? (
+                <div className="edit-area">
+                  <textarea value={editBody} onChange={e => setEditBody(e.target.value)} rows={12} />
+                  <div className="edit-buttons">
+                    <button onClick={handleSaveEdit} className="btn-save"><Save size={14} /> Lưu</button>
+                    <button onClick={() => { setEditing(false); setEditBody(post.post_body); }} className="btn-cancel-edit">Hủy</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="fb-text" onClick={() => setEditing(true)}>
+                  {post.post_body?.split('\n').map((line, i) => <p key={i}>{line || <br />}</p>)}
+                  <button className="btn-edit-inline"><Edit3 size={12} /> Sửa</button>
+                </div>
+              )}
+            </div>
+            {post.finalImage && (
+              <div className="fb-image">
+                <img src={post.finalImage.path} alt="" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Details */}
+        <div className="detail-col">
+          {/* Story Info */}
+          <div className="detail-card">
+            <h3>Câu chuyện</h3>
+            <div className="detail-row">
+              <label>Tên:</label>
+              <span>{story?.title_vi || story?.title}</span>
+            </div>
+            {story?.event_date && <div className="detail-row"><label>Thời gian:</label><span>{story.event_date}</span></div>}
+            {story?.location && <div className="detail-row"><label>Địa điểm:</label><span>{story.location}</span></div>}
+            {story?.category && <div className="detail-row"><label>Thể loại:</label><span className="category-tag">{story.category}</span></div>}
+          </div>
+
+          {/* Verified Facts */}
+          {story?.verified_facts?.length > 0 && (
+            <div className="detail-card">
+              <h3>Dữ kiện đã xác minh</h3>
+              <ul className="facts-list">
+                {story.verified_facts.map((f, i) => <li key={i}>{f}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {/* Sources */}
+          {story?.source_urls?.length > 0 && (
+            <div className="detail-card">
+              <h3>Nguồn tham khảo</h3>
+              {story.source_urls.map((url, i) => (
+                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="source-link">
+                  <ExternalLink size={12} /> {url.length > 60 ? url.substring(0, 60) + '...' : url}
+                </a>
+              ))}
+            </div>
+          )}
+
+          {/* Page Selection */}
+          <div className="detail-card">
+            <h3>Facebook Page</h3>
+            <select value={post.fb_page_id || ''} onChange={e => handlePageChange(e.target.value)}>
+              <option value="">Chọn Page...</option>
+              {pages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="detail-card">
+            <h3>Hành động</h3>
+            <button className="btn-action-full" onClick={handleRegenerate} disabled={regenerating}>
+              <RefreshCw size={14} className={regenerating ? 'spin' : ''} />
+              {regenerating ? 'Đang tạo lại...' : 'AI viết lại bài'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

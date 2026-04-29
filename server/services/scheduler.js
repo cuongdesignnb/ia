@@ -1,9 +1,11 @@
 import cron from 'node-cron';
 import { Post, Style, FbPage } from '../models/index.js';
 import { publishToPage, publishPost } from './facebookService.js';
+import { getSetting } from './settingsService.js';
 import { Op } from 'sequelize';
 
 let cronJob = null;
+let storyJob = null;
 
 /**
  * Start the scheduler - checks every minute for posts to publish
@@ -71,8 +73,62 @@ export function startScheduler() {
   console.log('Post scheduler started (checking every minute)');
 }
 
-export function stopScheduler() {
-  if (cronJob) { cronJob.stop(); cronJob = null; }
+/**
+ * Start the auto story scheduler
+ * Reads cron expression from settings
+ */
+export async function startStoryScheduler() {
+  if (storyJob) { storyJob.stop(); storyJob = null; }
+
+  const enabled = await getSetting('auto_story_enabled');
+  if (enabled !== 'true') {
+    console.log('Auto story scheduler: disabled');
+    return;
+  }
+
+  const cronExpr = await getSetting('auto_story_cron') || '0 6 * * *';
+  if (!cron.validate(cronExpr)) {
+    console.error(`Invalid cron expression: ${cronExpr}`);
+    return;
+  }
+
+  storyJob = cron.schedule(cronExpr, async () => {
+    console.log('[AutoStory] ⏰ Running scheduled story generation...');
+    try {
+      // Dynamic import to avoid circular dependency
+      const { runPipeline } = await import('./contentPipelineService.js');
+      const count = parseInt(await getSetting('auto_stories_per_day') || '3');
+
+      for (let i = 0; i < count; i++) {
+        try {
+          console.log(`[AutoStory] Generating story ${i + 1}/${count}...`);
+          await runPipeline();
+          // Small delay between stories to avoid rate limits
+          if (i < count - 1) await new Promise(r => setTimeout(r, 10000));
+        } catch (err) {
+          console.error(`[AutoStory] Story ${i + 1} failed:`, err.message);
+        }
+      }
+
+      console.log(`[AutoStory] ✅ Completed generating ${count} stories`);
+    } catch (err) {
+      console.error('[AutoStory] Scheduler error:', err.message);
+    }
+  });
+
+  console.log(`Auto story scheduler started (cron: ${cronExpr})`);
 }
 
-export default { startScheduler, stopScheduler };
+/**
+ * Restart story scheduler (call after settings change)
+ */
+export async function restartStoryScheduler() {
+  await startStoryScheduler();
+}
+
+export function stopScheduler() {
+  if (cronJob) { cronJob.stop(); cronJob = null; }
+  if (storyJob) { storyJob.stop(); storyJob = null; }
+}
+
+export default { startScheduler, startStoryScheduler, restartStoryScheduler, stopScheduler };

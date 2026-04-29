@@ -143,3 +143,13 @@
   border-top: 1px solid rgba(255,255,255,.06);
   margin: 16px 0;
 }
+
+/* Toggle Switch */
+.toggle-switch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.toggle-switch input { display: none; }
+.toggle-slider { width: 44px; height: 24px; background: rgba(255,255,255,0.1); border-radius: 12px; position: relative; transition: background 0.3s; flex-shrink: 0; }
+.toggle-slider::after { content: ''; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #888; top: 3px; left: 3px; transition: all 0.3s; }
+.toggle-switch input:checked + .toggle-slider { background: rgba(34,197,94,0.4); }
+.toggle-switch input:checked + .toggle-slider::after { transform: translateX(20px); background: #22c55e; }
+.toggle-label { color: #bbb; font-size: 13px; }
+

@@ -87,4 +87,34 @@ export const checkPageToken = (id) => api.post(`/fb-pages/${id}/check-token`);
 export const checkAllTokens = () => api.post('/fb-pages/check-all-tokens');
 export const exchangePageToken = (id, token) => api.post(`/fb-pages/${id}/exchange-token`, token ? { token } : {});
 
+// Media Library
+export const uploadMedia = (formData) => api.post('/media/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 });
+export const getMediaFiles = (params) => api.get('/media/files', { params });
+export const getMediaFile = (id) => api.get(`/media/files/${id}`);
+export const updateMediaFile = (id, data) => api.put(`/media/files/${id}`, data);
+export const deleteMediaFile = (id) => api.delete(`/media/files/${id}`);
+export const getMediaFolders = () => api.get('/media/folders');
+export const createMediaFolder = (data) => api.post('/media/folders', data);
+export const updateMediaFolder = (id, data) => api.put(`/media/folders/${id}`, data);
+export const deleteMediaFolder = (id) => api.delete(`/media/folders/${id}`);
+
+// True Stories
+export const createStoryJob = (data) => api.post('/true-stories/jobs', data, { timeout: 300000 });
+export const getStoryJobs = (params) => api.get('/true-stories/jobs', { params });
+export const getStoryJob = (id) => api.get(`/true-stories/jobs/${id}`);
+export const retryStoryJob = (id) => api.post(`/true-stories/jobs/${id}/retry`);
+export const getStories = (params) => api.get('/true-stories', { params });
+export const getStory = (id) => api.get(`/true-stories/${id}`);
+
+// Generated Posts (True Story drafts)
+export const getGeneratedPosts = (params) => api.get('/generated-posts', { params });
+export const getGeneratedPost = (id) => api.get(`/generated-posts/${id}`);
+export const updateGeneratedPost = (id, data) => api.put(`/generated-posts/${id}`, data);
+export const approveGeneratedPost = (id) => api.post(`/generated-posts/${id}/approve`);
+export const rejectGeneratedPost = (id) => api.post(`/generated-posts/${id}/reject`);
+export const publishGeneratedPost = (id) => api.post(`/generated-posts/${id}/publish`);
+export const regeneratePost = (id) => api.post(`/generated-posts/${id}/regenerate`);
+export const recomposeImage = (id, media_id) => api.post(`/generated-posts/${id}/recompose`, { media_id });
+
 export default api;
+

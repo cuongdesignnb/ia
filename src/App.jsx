@@ -10,6 +10,9 @@ import PostList from './pages/PostList';
 import SettingsPage from './pages/SettingsPage';
 import FbPagesPage from './pages/FbPagesPage';
 import LoginPage from './pages/LoginPage';
+import AutoContentPage from './pages/AutoContentPage';
+import StoryReviewPage from './pages/StoryReviewPage';
+import MediaLibraryPage from './pages/MediaLibraryPage';
 import { ToastProvider } from './components/Toast';
 import './App.css';
 
@@ -66,9 +69,12 @@ export default function App() {
           <main className="main-content">
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/auto-content" element={<AutoContentPage />} />
+              <Route path="/review/:id" element={<StoryReviewPage />} />
               <Route path="/create" element={<CreatePost />} />
               <Route path="/posts" element={<PostList />} />
               <Route path="/pages" element={<FbPagesPage />} />
+              <Route path="/media" element={<MediaLibraryPage />} />
               <Route path="/settings" element={<SettingsPage onLogout={handleLogout} />} />
             </Routes>
           </main>

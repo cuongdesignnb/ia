@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Globe, Key, CheckCircle, XCircle, RefreshCw, Save, Eye, EyeOff, Loader, Shield, Zap, Sparkles, Lock, KeyRound } from 'lucide-react';
+import { Globe, Key, CheckCircle, XCircle, RefreshCw, Save, Eye, EyeOff, Loader, Shield, Zap, Sparkles, Lock, KeyRound, Bot, Clock, Image } from 'lucide-react';
 import { getFbStatus, healthCheck, getSettings, updateSettings, testAiConnection, authChangePassword, authLogout } from '../utils/api';
 import { useToast } from '../components/Toast';
+import MediaLibrary from '../components/MediaLibrary';
 import './SettingsPage.css';
 
 export default function SettingsPage({ onLogout }) {
@@ -22,6 +23,23 @@ export default function SettingsPage({ onLogout }) {
   const [testResult, setTestResult] = useState(null);
   const [testing, setTesting] = useState(false);
 
+  // Auto Story settings
+  const [autoForm, setAutoForm] = useState({
+    auto_story_enabled: 'false',
+    auto_story_cron: '0 6 * * *',
+    auto_stories_per_day: '3',
+    auto_story_categories: '["survival","science","history","nature","humanity"]',
+    auto_story_ai_model: 'gpt-5.5',
+    image_label_text: 'CÂU CHUYỆN CÓ THẬT',
+    image_label_color: '#ff0000',
+    image_logo_position: 'top-right',
+    image_logo_size: '120',
+    image_logo_media_id: '',
+    unsplash_api_key: '',
+  });
+  const [showMediaLib, setShowMediaLib] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+
   // Password change
   const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
   const [pwMsg, setPwMsg] = useState({ text: '', ok: false });
@@ -37,6 +55,12 @@ export default function SettingsPage({ onLogout }) {
     try {
       const res = await getSettings();
       setSettings(res.data.data);
+      // Load auto story settings
+      const autoKeys = res.data.data?.auto_story || {};
+      setAutoForm(prev => ({
+        ...prev,
+        ...Object.fromEntries(Object.entries(autoKeys).filter(([k, v]) => v?.value).map(([k, v]) => [k, v.value])),
+      }));
     } catch (err) {
       console.error('Failed to load settings:', err);
     }
@@ -107,6 +131,18 @@ export default function SettingsPage({ onLogout }) {
   };
 
   const toggleShowKey = (key) => setShowKeys(v => ({ ...v, [key]: !v[key] }));
+
+  const handleSaveAutoStory = async () => {
+    setAutoSaving(true);
+    try {
+      await updateSettings(autoForm);
+      toast.success('Đã lưu cài đặt Auto Story!');
+      loadSettings();
+    } catch (err) {
+      toast.error('Lỗi: ' + (err.response?.data?.error || err.message));
+    }
+    setAutoSaving(false);
+  };
 
   const renderKeyField = (key, label, placeholder) => {
     const info = settings?.[key.startsWith('fb_') ? 'facebook' : 'ai']?.[key];
@@ -202,6 +238,98 @@ export default function SettingsPage({ onLogout }) {
           {renderKeyField('fb_app_id', 'Facebook App ID', 'Nhập App ID...')}
           {renderKeyField('fb_app_secret', 'Facebook App Secret', 'Nhập App Secret...')}
         </div>
+
+        {/* Auto True Story */}
+        <div className="card settings-section">
+          <h3><Bot size={18} /> Auto True Story</h3>
+          <div className="form-group">
+            <label>Bật tự động tạo bài</label>
+            <label className="toggle-switch">
+              <input type="checkbox" checked={autoForm.auto_story_enabled === 'true'}
+                onChange={e => setAutoForm(f => ({ ...f, auto_story_enabled: e.target.checked ? 'true' : 'false' }))} />
+              <span className="toggle-slider"></span>
+              <span className="toggle-label">{autoForm.auto_story_enabled === 'true' ? 'Đang bật' : 'Đang tắt'}</span>
+            </label>
+          </div>
+          <div className="form-group">
+            <label><Clock size={14} /> Lịch chạy (Cron expression)</label>
+            <input type="text" value={autoForm.auto_story_cron}
+              onChange={e => setAutoForm(f => ({ ...f, auto_story_cron: e.target.value }))}
+              placeholder="0 6 * * * (mỗi ngày lúc 6:00)" />
+            <small style={{ color: '#888', marginTop: 4 }}>VD: "0 6 * * *" = 6h sáng mỗi ngày, "0 6,18 * * *" = 6h + 18h</small>
+          </div>
+          <div className="form-group">
+            <label>Số bài mỗi lần chạy</label>
+            <input type="number" min="1" max="10" value={autoForm.auto_stories_per_day}
+              onChange={e => setAutoForm(f => ({ ...f, auto_stories_per_day: e.target.value }))} />
+          </div>
+          <div className="form-group">
+            <label>AI Model mặc định</label>
+            <select value={autoForm.auto_story_ai_model}
+              onChange={e => setAutoForm(f => ({ ...f, auto_story_ai_model: e.target.value }))}>
+              <option value="gpt-5.5">GPT-5.5 (Flagship)</option>
+              <option value="gpt-5.4-mini">GPT-5.4 Mini</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+            </select>
+          </div>
+          <div className="settings-divider" />
+          <h4 style={{ margin: '0 0 12px', fontSize: '.9rem', color: '#ccc', display: 'flex', alignItems: 'center', gap: 6 }}><Image size={15} /> Branding ảnh</h4>
+          <div className="form-group">
+            <label>Nhãn trên ảnh</label>
+            <input type="text" value={autoForm.image_label_text}
+              onChange={e => setAutoForm(f => ({ ...f, image_label_text: e.target.value }))}
+              placeholder="CÂU CHUYỆN CÓ THẬT" />
+          </div>
+          <div className="form-group">
+            <label>Màu nhãn</label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input type="color" value={autoForm.image_label_color}
+                onChange={e => setAutoForm(f => ({ ...f, image_label_color: e.target.value }))} style={{ width: 40, height: 32, padding: 0, border: 'none' }} />
+              <input type="text" value={autoForm.image_label_color}
+                onChange={e => setAutoForm(f => ({ ...f, image_label_color: e.target.value }))} style={{ width: 100 }} />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Logo (gắn vào ảnh compose)</label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {autoForm.image_logo_media_id && <span className="key-configured"><CheckCircle size={13} /> ID: {autoForm.image_logo_media_id}</span>}
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowMediaLib(true)}><Image size={14} /> Chọn logo</button>
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Vị trí logo</label>
+            <select value={autoForm.image_logo_position}
+              onChange={e => setAutoForm(f => ({ ...f, image_logo_position: e.target.value }))}>
+              <option value="top-left">Trên trái</option>
+              <option value="top-right">Trên phải</option>
+              <option value="bottom-left">Dưới trái</option>
+              <option value="bottom-right">Dưới phải</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Kích thước logo (px)</label>
+            <input type="number" min="40" max="300" value={autoForm.image_logo_size}
+              onChange={e => setAutoForm(f => ({ ...f, image_logo_size: e.target.value }))} />
+          </div>
+          <div className="settings-divider" />
+          <div className="form-group">
+            <label>Unsplash API Key</label>
+            <div className="input-with-icon">
+              <input type={showKeys['unsplash'] ? 'text' : 'password'} value={autoForm.unsplash_api_key}
+                onChange={e => setAutoForm(f => ({ ...f, unsplash_api_key: e.target.value }))}
+                placeholder="Unsplash Access Key..." />
+              <button type="button" className="input-icon-btn" onClick={() => toggleShowKey('unsplash')}>
+                {showKeys['unsplash'] ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+          <button className="btn btn-primary" onClick={handleSaveAutoStory} disabled={autoSaving} style={{ marginTop: 12 }}>
+            {autoSaving ? <><Loader size={14} className="spin-icon" /> Đang lưu...</> : <><Save size={14} /> Lưu Auto Story</>}
+          </button>
+        </div>
+
+        <MediaLibrary isOpen={showMediaLib} onClose={() => setShowMediaLib(false)}
+          onSelect={(file) => setAutoForm(f => ({ ...f, image_logo_media_id: String(file.id) }))} title="Chọn Logo" />
 
         {/* Save */}
         <div className="settings-save-bar">
