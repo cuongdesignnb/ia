@@ -3,7 +3,7 @@
  * Orchestrator điều phối toàn bộ pipeline: discover → search images → write → compose → draft
  */
 import { discoverStory } from './storyDiscoveryService.js';
-import { searchAndDownloadImages } from './imageSearchService.js';
+import { searchAndDownloadImages, generateAIImageForStory } from './imageSearchService.js';
 import { writeArticle } from './articleWriterService.js';
 import { composeImage } from './imageComposerService.js';
 import { ContentJob, GeneratedPost, GeneratedImage, MediaFile, FbPage } from '../models/index.js';
@@ -33,12 +33,18 @@ export async function runPipeline(topic = null, category = null, fbPageId = null
     await job.update({ story_id: story.id });
     console.log(`[Pipeline] Story found: "${story.title_vi || story.title}"`);
 
-    // Step 2: Search images
+    // Step 2: Search images (with AI fallback)
     await updateJobStatus(job, 'searching_images', 2);
     console.log(`[Pipeline] Job #${job.id} — Step 2: Searching images...`);
     const searchKeywords = extractSearchKeywords(story);
     const mediaFiles = await searchAndDownloadImages(story, searchKeywords, 5);
-    console.log(`[Pipeline] Found ${mediaFiles.length} images`);
+    console.log(`[Pipeline] Found ${mediaFiles.length} real photos`);
+
+    if (mediaFiles.length === 0) {
+      console.log(`[Pipeline] No real photos found — falling back to AI image generation`);
+      const aiImage = await generateAIImageForStory(story);
+      if (aiImage) mediaFiles.push(aiImage);
+    }
 
     // Step 3: Write article
     await updateJobStatus(job, 'writing', 3);
