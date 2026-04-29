@@ -54,8 +54,12 @@ const distDir = path.join(__dirname, '..', 'dist');
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir));
   // SPA fallback — mọi route không match API sẽ trả về index.html
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(distDir, 'index.html'));
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api/') && !req.path.startsWith('/uploads/')) {
+      res.sendFile(path.join(distDir, 'index.html'));
+    } else {
+      next();
+    }
   });
   console.log('Serving frontend from /dist');
 }
