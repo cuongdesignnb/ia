@@ -8,6 +8,7 @@ import TrueStory from './TrueStory.js';
 import ContentJob from './ContentJob.js';
 import GeneratedPost from './GeneratedPost.js';
 import GeneratedImage from './GeneratedImage.js';
+import TopicSuggestion from './TopicSuggestion.js';
 
 // ============================
 // Original Associations
@@ -68,14 +69,21 @@ GeneratedImage.belongsTo(GeneratedPost, { foreignKey: 'generated_post_id', as: '
 GeneratedImage.belongsTo(MediaFile, { foreignKey: 'source_media_id', as: 'sourceMedia' });
 GeneratedImage.belongsTo(MediaFile, { foreignKey: 'output_media_id', as: 'outputMedia' });
 
+// ============================
+// TopicSuggestion Associations
+// ============================
+TopicSuggestion.belongsTo(TrueStory, { foreignKey: 'story_id', as: 'story', constraints: false });
+
 export {
   Style, Post, Setting, FbPage,
   MediaFolder, MediaFile,
   TrueStory, ContentJob, GeneratedPost, GeneratedImage,
+  TopicSuggestion,
 };
 
 export default {
   Style, Post, Setting, FbPage,
   MediaFolder, MediaFile,
   TrueStory, ContentJob, GeneratedPost, GeneratedImage,
+  TopicSuggestion,
 };

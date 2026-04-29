@@ -116,5 +116,14 @@ export const publishGeneratedPost = (id) => api.post(`/generated-posts/${id}/pub
 export const regeneratePost = (id) => api.post(`/generated-posts/${id}/regenerate`);
 export const recomposeImage = (id, media_id) => api.post(`/generated-posts/${id}/recompose`, { media_id });
 
+// Topic Suggestions (kho gợi ý chủ đề tích luỹ)
+export const getTopicSuggestions = (params) => api.get('/topic-suggestions', { params });
+export const generateTopicSuggestions = (count) =>
+  api.post('/topic-suggestions/generate', count ? { count } : {}, { timeout: 180000 });
+export const pickTopicSuggestion = (id, fb_page_id) =>
+  api.post(`/topic-suggestions/${id}/pick`, fb_page_id ? { fb_page_id } : {}, { timeout: 60000 });
+export const dismissTopicSuggestion = (id) => api.post(`/topic-suggestions/${id}/dismiss`);
+export const deleteTopicSuggestion = (id) => api.delete(`/topic-suggestions/${id}`);
+
 export default api;
 

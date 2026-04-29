@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bot, Play, RefreshCw, Eye, Check, X, Clock, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { Bot, Play, RefreshCw, Eye, Check, X, Clock, Loader2, Sparkles, AlertCircle, Lightbulb, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '../components/Toast';
-import { createStoryJob, getStoryJobs, getGeneratedPosts, approveGeneratedPost, publishGeneratedPost } from '../utils/api';
+import {
+  createStoryJob, getStoryJobs, getGeneratedPosts, approveGeneratedPost, publishGeneratedPost,
+  getTopicSuggestions, generateTopicSuggestions, pickTopicSuggestion, dismissTopicSuggestion,
+} from '../utils/api';
 import './AutoContentPage.css';
 
 const STEP_LABELS = ['Tìm câu chuyện', 'Tìm ảnh', 'Viết bài', 'Tạo ảnh', 'Hoàn tất'];
@@ -10,20 +13,25 @@ const STEP_LABELS = ['Tìm câu chuyện', 'Tìm ảnh', 'Viết bài', 'Tạo �
 export default function AutoContentPage() {
   const [jobs, setJobs] = useState([]);
   const [drafts, setDrafts] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
   const [topic, setTopic] = useState('');
   const [creating, setCreating] = useState(false);
+  const [generatingBatch, setGeneratingBatch] = useState(false);
+  const [pickingId, setPickingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const { addToast } = useToast();
   const navigate = useNavigate();
 
   const load = useCallback(async () => {
     try {
-      const [jobsRes, draftsRes] = await Promise.all([
+      const [jobsRes, draftsRes, sugRes] = await Promise.all([
         getStoryJobs({ limit: 10 }),
         getGeneratedPosts({ status: 'draft', limit: 20 }),
+        getTopicSuggestions({ status: 'pending', limit: 100 }),
       ]);
       setJobs(jobsRes.data.jobs || []);
       setDrafts(draftsRes.data.posts || []);
+      setSuggestions(sugRes.data.suggestions || []);
     } catch (err) {
       console.error('Load error:', err);
     } finally {
@@ -75,6 +83,55 @@ export default function AutoContentPage() {
     }
   };
 
+  const handleGenerateBatch = async () => {
+    setGeneratingBatch(true);
+    try {
+      const res = await generateTopicSuggestions();
+      const n = res.data.suggestions?.length || 0;
+      addToast(`Đã tạo ${n} gợi ý mới!`, 'success');
+      load();
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Lỗi tạo gợi ý', 'error');
+    } finally {
+      setGeneratingBatch(false);
+    }
+  };
+
+  const handlePickSuggestion = async (id) => {
+    setPickingId(id);
+    try {
+      await pickTopicSuggestion(id);
+      addToast('Đã bắt đầu tạo bài từ gợi ý!', 'info');
+      load();
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Lỗi pick gợi ý', 'error');
+    } finally {
+      setPickingId(null);
+    }
+  };
+
+  const handleDismissSuggestion = async (id) => {
+    try {
+      await dismissTopicSuggestion(id);
+      setSuggestions(prev => prev.filter(s => s.id !== id));
+    } catch (err) {
+      addToast('Lỗi bỏ qua gợi ý', 'error');
+    }
+  };
+
+  // Group suggestions by batch_id (newest batch first)
+  const suggestionBatches = (() => {
+    const map = new Map();
+    for (const s of suggestions) {
+      const key = s.batch_id || `single-${s.id}`;
+      if (!map.has(key)) {
+        map.set(key, { batch_id: s.batch_id, source: s.source, created_at: s.created_at, items: [] });
+      }
+      map.get(key).items.push(s);
+    }
+    return Array.from(map.values()).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  })();
+
   const pendingDrafts = drafts.filter(d => d.status === 'draft');
   const runningJobs = jobs.filter(j => !['completed', 'failed'].includes(j.status));
 
@@ -121,6 +178,77 @@ export default function AutoContentPage() {
             {creating ? <><Loader2 size={16} className="spin" /> Đang tạo...</> : <><Play size={16} /> Tạo bài</>}
           </button>
         </div>
+      </div>
+
+      {/* Topic Suggestions */}
+      <div className="section suggestions-section">
+        <div className="section-header">
+          <h2><Lightbulb size={20} /> Gợi ý chủ đề ({suggestions.length})</h2>
+          <button
+            className="btn-generate-batch"
+            onClick={handleGenerateBatch}
+            disabled={generatingBatch}
+          >
+            {generatingBatch
+              ? <><Loader2 size={16} className="spin" /> Đang tạo...</>
+              : <><Plus size={16} /> Tạo thêm gợi ý</>}
+          </button>
+        </div>
+
+        {suggestionBatches.length === 0 ? (
+          <div className="empty-state">
+            <Lightbulb size={48} />
+            <p>Chưa có gợi ý nào. Bấm <b>"Tạo thêm gợi ý"</b> hoặc đợi cron 06:00 hàng ngày.</p>
+          </div>
+        ) : (
+          <div className="batches-list">
+            {suggestionBatches.map((batch) => (
+              <div key={batch.batch_id || batch.items[0].id} className="batch-group">
+                <div className="batch-meta">
+                  <span className={`batch-source source-${batch.source}`}>
+                    {batch.source === 'cron' ? '⏰ Hàng ngày' : '✨ Thủ công'}
+                  </span>
+                  <span className="batch-time">
+                    {new Date(batch.created_at).toLocaleString('vi-VN')}
+                  </span>
+                  <span className="batch-count">{batch.items.length} chủ đề</span>
+                </div>
+                <div className="suggestions-grid">
+                  {batch.items.map((s) => (
+                    <div key={s.id} className="suggestion-card">
+                      <div className="suggestion-header">
+                        <span className="suggestion-category">{s.category || 'misc'}</span>
+                        <button
+                          className="btn-icon-dismiss"
+                          title="Bỏ qua"
+                          onClick={() => handleDismissSuggestion(s.id)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      <h3 className="suggestion-title">{s.title_vi || s.title}</h3>
+                      {s.title_vi && s.title && s.title_vi !== s.title && (
+                        <p className="suggestion-original">{s.title}</p>
+                      )}
+                      {s.summary && <p className="suggestion-summary">{s.summary}</p>}
+                      <div className="suggestion-actions">
+                        <button
+                          className="btn-pick"
+                          onClick={() => handlePickSuggestion(s.id)}
+                          disabled={pickingId === s.id}
+                        >
+                          {pickingId === s.id
+                            ? <><Loader2 size={14} className="spin" /> Đang khởi chạy...</>
+                            : <><Play size={14} /> Tạo bài</>}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Running Jobs */}

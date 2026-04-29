@@ -6,6 +6,7 @@ import { Op } from 'sequelize';
 
 let cronJob = null;
 let storyJob = null;
+let topicSuggestionJob = null;
 
 /**
  * Start the scheduler - checks every minute for posts to publish
@@ -126,9 +127,55 @@ export async function restartStoryScheduler() {
   await startStoryScheduler();
 }
 
+/**
+ * Start the topic suggestion scheduler — sinh kho gợi ý chủ đề mỗi ngày.
+ * Cron mặc định: 06:00 (giờ server). Có thể đổi qua setting `topic_suggestion_cron`.
+ */
+export async function startTopicSuggestionScheduler() {
+  if (topicSuggestionJob) { topicSuggestionJob.stop(); topicSuggestionJob = null; }
+
+  const enabled = await getSetting('topic_suggestion_enabled');
+  // Mặc định BẬT — kho tích luỹ phải có data hằng ngày
+  if (enabled === 'false') {
+    console.log('Topic suggestion scheduler: disabled');
+    return;
+  }
+
+  const cronExpr = await getSetting('topic_suggestion_cron') || '0 6 * * *';
+  if (!cron.validate(cronExpr)) {
+    console.error(`Invalid topic suggestion cron expression: ${cronExpr}`);
+    return;
+  }
+
+  topicSuggestionJob = cron.schedule(cronExpr, async () => {
+    console.log('[TopicSuggestion] ⏰ Generating daily batch...');
+    try {
+      const { generateBatch } = await import('./topicSuggestionService.js');
+      const result = await generateBatch({ source: 'cron' });
+      console.log(`[TopicSuggestion] ✅ Created batch ${result.batch_id} with ${result.suggestions.length} topics`);
+    } catch (err) {
+      console.error('[TopicSuggestion] Scheduler error:', err.message);
+    }
+  });
+
+  console.log(`Topic suggestion scheduler started (cron: ${cronExpr})`);
+}
+
+export async function restartTopicSuggestionScheduler() {
+  await startTopicSuggestionScheduler();
+}
+
 export function stopScheduler() {
   if (cronJob) { cronJob.stop(); cronJob = null; }
   if (storyJob) { storyJob.stop(); storyJob = null; }
+  if (topicSuggestionJob) { topicSuggestionJob.stop(); topicSuggestionJob = null; }
 }
 
-export default { startScheduler, startStoryScheduler, restartStoryScheduler, stopScheduler };
+export default {
+  startScheduler,
+  startStoryScheduler,
+  restartStoryScheduler,
+  startTopicSuggestionScheduler,
+  restartTopicSuggestionScheduler,
+  stopScheduler,
+};

@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 import sequelize from './config/database.js';
 import './models/index.js';
 import seedStyles from './seeders/styleSeeder.js';
-import { startScheduler, startStoryScheduler } from './services/scheduler.js';
+import { startScheduler, startStoryScheduler, startTopicSuggestionScheduler } from './services/scheduler.js';
 import { loadSettings } from './services/settingsService.js';
 import { seedAdminPassword } from './services/authService.js';
 import postRoutes from './routes/posts.js';
@@ -20,6 +20,7 @@ import fbPagesRoutes from './routes/fbPages.js';
 import mediaRoutes from './routes/media.js';
 import trueStoryRoutes from './routes/trueStories.js';
 import generatedPostRoutes from './routes/generatedPosts.js';
+import topicSuggestionRoutes from './routes/topicSuggestions.js';
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use('/api/facebook', facebookRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/true-stories', trueStoryRoutes);
 app.use('/api/generated-posts', generatedPostRoutes);
+app.use('/api/topic-suggestions', topicSuggestionRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -88,6 +90,7 @@ async function start() {
 
     startScheduler();
     await startStoryScheduler();
+    await startTopicSuggestionScheduler();
 
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
