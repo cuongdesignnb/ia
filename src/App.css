@@ -1,0 +1,219 @@
+/* ============================
+   Main App Layout
+   ============================ */
+.main-content {
+  margin-left: 260px;
+  padding: 32px 40px;
+  min-height: 100vh;
+  width: calc(100% - 260px);
+  animation: fadeIn .5s cubic-bezier(.4,0,.2,1);
+}
+
+/* Mobile overlay */
+.sidebar-overlay {
+  display: none;
+}
+
+/* Mobile toggle */
+.mobile-menu-toggle {
+  display: none;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 200;
+  width: 42px;
+  height: 42px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-heading);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: var(--shadow-md);
+}
+.mobile-menu-toggle:hover {
+  background: var(--bg-elevated);
+  border-color: var(--primary);
+}
+
+/* Spin icon animation for loading */
+.spin-icon {
+  animation: spin 0.8s linear infinite;
+}
+
+/* Page transition */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(16px);
+}
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+}
+
+/* ============================
+   Responsive: Tablet
+   ============================ */
+@media (max-width: 1024px) {
+  .main-content {
+    padding: 28px 24px;
+  }
+}
+
+/* ============================
+   Responsive: Mobile
+   ============================ */
+@media (max-width: 768px) {
+  .mobile-menu-toggle {
+    display: flex;
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    backdrop-filter: blur(4px);
+    z-index: 99;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s ease;
+  }
+  .sidebar-overlay.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    box-shadow: none;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 8px 0 32px rgba(0,0,0,.5);
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding: 20px 16px;
+    padding-top: 72px;
+    width: 100%;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 14px 16px;
+  }
+  .stat-value {
+    font-size: 1.3rem;
+  }
+
+  .wizard-steps {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .wizard-step {
+    min-width: 80px;
+    font-size: .78rem;
+    padding: 8px;
+  }
+
+  .style-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .fb-preview {
+    max-width: 100%;
+  }
+
+  .wizard-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .wizard-actions > div {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .wizard-actions > div .btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .posts-page .filter-bar {
+    flex-direction: column;
+  }
+  .posts-page .filter-bar input,
+  .posts-page .filter-bar select {
+    max-width: 100%;
+  }
+
+  .posts-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .posts-table thead {
+    display: none;
+  }
+  .posts-table tbody,
+  .posts-table tr,
+  .posts-table td {
+    display: block;
+    width: 100%;
+  }
+  .posts-table tr {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .posts-table td {
+    padding: 4px 0;
+    border: none;
+    font-size: .85rem;
+  }
+  .posts-table td:first-child {
+    font-size: .95rem;
+    margin-bottom: 4px;
+  }
+  .post-actions {
+    justify-content: flex-end;
+    margin-top: 8px;
+    opacity: 1;
+  }
+
+  .settings-grid {
+    gap: 14px;
+  }
+
+  h1 { font-size: 1.4rem; }
+}
+
+/* ============================
+   Responsive: Small phone
+   ============================ */
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .style-grid {
+    grid-template-columns: 1fr;
+  }
+  .main-content {
+    padding: 16px 12px;
+    padding-top: 68px;
+  }
+}

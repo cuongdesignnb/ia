@@ -1,0 +1,145 @@
+/* ============================
+   Settings Page
+   ============================ */
+.settings-page .settings-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.settings-section h3 {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+}
+.settings-section .form-group + .form-group { margin-top: 16px; }
+
+.api-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  font-size: .85rem;
+  font-weight: 500;
+  transition: var(--transition);
+}
+.api-status.connected {
+  background: rgba(34,197,94,.08);
+  color: var(--success);
+  border: 1px solid rgba(34,197,94,.15);
+}
+.api-status.disconnected {
+  background: rgba(239,68,68,.08);
+  color: var(--danger);
+  border: 1px solid rgba(239,68,68,.15);
+}
+
+/* Key status */
+.key-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: .8rem;
+}
+.key-configured {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--success);
+  background: rgba(34,197,94,.08);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-family: var(--font-mono);
+  font-size: .75rem;
+}
+.key-not-configured {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: .78rem;
+}
+
+/* Input with icon (show/hide toggle) */
+.input-with-icon {
+  position: relative;
+}
+.input-with-icon input {
+  padding-right: 44px;
+}
+.input-icon-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  transition: var(--transition);
+}
+.input-icon-btn:hover { color: var(--text-heading); }
+
+/* Test results */
+.test-results {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.test-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-size: .82rem;
+  font-weight: 500;
+}
+.test-pass {
+  background: rgba(34,197,94,.08);
+  color: var(--success);
+  border: 1px solid rgba(34,197,94,.12);
+}
+.test-fail {
+  background: rgba(239,68,68,.08);
+  color: var(--danger);
+  border: 1px solid rgba(239,68,68,.12);
+}
+
+/* Save bar */
+.settings-save-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  position: sticky;
+  bottom: 20px;
+  backdrop-filter: blur(12px);
+  z-index: 10;
+}
+.save-message {
+  font-size: .85rem;
+  color: var(--success);
+  animation: fadeIn .3s ease;
+}
+
+/* Password success */
+.login-error.success {
+  background: rgba(34,197,94,.1);
+  border-color: rgba(34,197,94,.2);
+  color: var(--success);
+}
+
+.settings-divider {
+  border-top: 1px solid rgba(255,255,255,.06);
+  margin: 16px 0;
+}

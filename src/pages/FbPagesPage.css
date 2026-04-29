@@ -1,0 +1,213 @@
+/* ============================
+   Facebook Pages Management
+   ============================ */
+.pages-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 20px;
+}
+
+.page-card {
+  overflow: hidden;
+  transition: var(--transition);
+}
+.page-card.inactive {
+  opacity: .55;
+}
+.page-card:hover {
+  border-color: rgba(99,102,241,.25);
+}
+
+.page-card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.page-card-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 800;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg);
+}
+.page-card-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.page-card-info {
+  flex: 1;
+  min-width: 0;
+}
+.page-card-info h3 {
+  font-size: .95rem;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.page-card-id {
+  font-size: .72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.page-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  transition: var(--transition);
+}
+.page-toggle-btn:hover { transform: scale(1.1); }
+
+.page-card-stats {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 12px;
+}
+.page-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .82rem;
+  color: var(--text-muted);
+}
+
+.page-card-token {
+  background: rgba(255,255,255,.03);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .78rem;
+}
+.token-label { color: var(--text-muted); }
+.token-value { font-family: var(--font-mono); color: var(--text); }
+
+.page-card-actions {
+  display: flex;
+  gap: 8px;
+}
+.page-card-actions .btn-danger { color: var(--danger); }
+.page-card-actions .btn-danger:hover { background: rgba(239,68,68,.08); }
+.page-card-actions .btn-exchange { color: #f59e0b; }
+.page-card-actions .btn-exchange:hover { background: rgba(245,158,11,.08); }
+
+.page-card-token-edit {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.page-card-token-edit input {
+  flex: 1;
+  font-family: monospace;
+}
+
+.page-card-exchange {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: rgba(245,158,11,.05);
+  border: 1px solid rgba(245,158,11,.15);
+}
+
+.exchange-hint {
+  font-size: .76rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0 0 10px;
+}
+.exchange-hint a {
+  color: #f59e0b;
+  text-decoration: underline;
+}
+.exchange-hint code {
+  background: rgba(255,255,255,.06);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: .72rem;
+}
+
+.page-card-footer {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: .72rem;
+  color: var(--text-muted);
+}
+
+/* Add Page Card */
+.add-page-card {
+  border: 1px dashed rgba(99,102,241,.3);
+  background: rgba(99,102,241,.02);
+}
+.add-page-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.add-page-hint {
+  font-size: .82rem;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+.form-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+@media (max-width: 640px) {
+  .form-row { flex-direction: column; }
+}
+
+/* Color Picker */
+.color-picker {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.color-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.color-dot:hover { transform: scale(1.15); }
+.color-dot.active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px var(--primary);
+  transform: scale(1.15);
+}
+
+@media (max-width: 640px) {
+  .pages-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Token Status Badges */
+.token-badge {
+  font-size: .72rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.token-valid { color: var(--success); }
+.token-expired { color: var(--error); }
+.token-error { color: #f59e0b; }
+.token-unknown { color: var(--text-muted); }

@@ -1,0 +1,127 @@
+/* ============================
+   Dashboard
+   ============================ */
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+.page-subtitle {
+  color: var(--text-muted);
+  font-size: .9rem;
+  margin-top: 4px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -30%;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .03;
+  pointer-events: none;
+}
+.stat-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: var(--transition);
+}
+.stat-card:hover .stat-icon {
+  transform: scale(1.1);
+}
+.stat-value {
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: var(--text-heading);
+  display: block;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.stat-label {
+  font-size: .8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.section-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.05rem;
+}
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+}
+.recent-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+  transition: var(--transition);
+}
+.recent-item:last-child { border-bottom: none; }
+.recent-item:hover {
+  padding-left: 10px;
+  background: linear-gradient(90deg, var(--primary-glow), transparent);
+}
+.recent-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.recent-title {
+  color: var(--text-heading);
+  font-size: .9rem;
+  font-weight: 500;
+}
+.recent-date {
+  color: var(--text-muted);
+  font-size: .78rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-muted);
+}
+.empty-state p { margin-bottom: 16px; }
