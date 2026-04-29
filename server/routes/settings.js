@@ -121,9 +121,9 @@ router.post('/test-ai', async (req, res) => {
       try {
         const { GoogleGenerativeAI } = await import('@google/generative-ai');
         const genAI = new GoogleGenerativeAI(geminiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
         await model.generateContent('Trả lời "OK" nếu bạn nhận được tin nhắn này.');
-        results.gemini = { ok: true, model: 'gemini-2.0-flash-lite' };
+        results.gemini = { ok: true, model: 'gemini-2.0-flash' };
       } catch (err) {
         results.gemini = { ok: false, error: err.message };
       }
