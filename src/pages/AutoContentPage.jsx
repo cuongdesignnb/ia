@@ -5,6 +5,7 @@ import { useToast } from '../components/Toast';
 import {
   createStoryJob, getStoryJobs, getGeneratedPosts, approveGeneratedPost, publishGeneratedPost,
   getTopicSuggestions, generateTopicSuggestions, pickTopicSuggestion, dismissTopicSuggestion,
+  retryStoryJob,
 } from '../utils/api';
 import './AutoContentPage.css';
 
@@ -116,6 +117,16 @@ export default function AutoContentPage() {
       setSuggestions(prev => prev.filter(s => s.id !== id));
     } catch (err) {
       addToast('Lỗi bỏ qua gợi ý', 'error');
+    }
+  };
+
+  const handleRetryJob = async (jobId) => {
+    try {
+      await retryStoryJob(jobId);
+      addToast('Đang chạy lại job...', 'info');
+      load();
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Lỗi retry', 'error');
     }
   };
 
@@ -327,7 +338,12 @@ export default function AutoContentPage() {
               <div key={job.id} className="job-card failed">
                 <div className="job-header">
                   <span className="job-topic">{job.topic}</span>
-                  <span className="job-status status-failed">Lỗi</span>
+                  <div className="job-header-right">
+                    <button className="btn-retry" onClick={() => handleRetryJob(job.id)} title="Chạy lại">
+                      <RefreshCw size={14} /> Retry
+                    </button>
+                    <span className="job-status status-failed">Lỗi</span>
+                  </div>
                 </div>
                 <p className="job-error">{job.error_message}</p>
               </div>
