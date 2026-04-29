@@ -19,7 +19,7 @@ export default function StoryReviewPage() {
 
   useEffect(() => {
     loadPost();
-    getFbPages().then(r => setPages(r.data || [])).catch(() => {});
+    getFbPages().then(r => setPages(r.data?.data || [])).catch(() => {});
   }, [id]);
 
   const loadPost = async () => {
@@ -101,6 +101,20 @@ export default function StoryReviewPage() {
   const story = post.story;
   const fbPage = post.fbPage;
 
+  // Sequelize JSON fields đôi khi trả về string (khi underlying column là LONGTEXT) — parse phòng thủ
+  const toArray = (v) => {
+    if (Array.isArray(v)) return v;
+    if (typeof v === 'string' && v.trim()) {
+      try {
+        const parsed = JSON.parse(v);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch { return []; }
+    }
+    return [];
+  };
+  const verifiedFacts = toArray(story?.verified_facts);
+  const sourceUrls = toArray(story?.source_urls);
+
   return (
     <div className="review-page">
       <div className="review-header">
@@ -173,20 +187,20 @@ export default function StoryReviewPage() {
           </div>
 
           {/* Verified Facts */}
-          {story?.verified_facts?.length > 0 && (
+          {verifiedFacts.length > 0 && (
             <div className="detail-card">
               <h3>Dữ kiện đã xác minh</h3>
               <ul className="facts-list">
-                {story.verified_facts.map((f, i) => <li key={i}>{f}</li>)}
+                {verifiedFacts.map((f, i) => <li key={i}>{f}</li>)}
               </ul>
             </div>
           )}
 
           {/* Sources */}
-          {story?.source_urls?.length > 0 && (
+          {sourceUrls.length > 0 && (
             <div className="detail-card">
               <h3>Nguồn tham khảo</h3>
-              {story.source_urls.map((url, i) => (
+              {sourceUrls.map((url, i) => (
                 <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="source-link">
                   <ExternalLink size={12} /> {url.length > 60 ? url.substring(0, 60) + '...' : url}
                 </a>
