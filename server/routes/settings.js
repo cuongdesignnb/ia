@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../services/authService.js';
 import { getSetting, setSetting, getSettingsByGroup, invalidateCache } from '../services/settingsService.js';
+import { restartStoryScheduler, restartTopicSuggestionScheduler } from './../services/scheduler.js';
 
 const router = Router();
 
@@ -9,6 +10,24 @@ router.use(requireAuth);
 
 // Sensitive keys — mask these when returning to frontend
 const SENSITIVE_KEYS = ['admin_password'];
+
+// Auto Story keys (non-sensitive — value returned as-is for editing)
+const AUTO_STORY_KEYS = [
+  'auto_story_enabled',
+  'auto_story_cron',
+  'auto_stories_per_day',
+  'auto_story_categories',
+  'auto_story_ai_model',
+  'image_label_text',
+  'image_label_color',
+  'image_logo_position',
+  'image_logo_size',
+  'image_logo_media_id',
+  'unsplash_api_key',
+  'topic_suggestion_enabled',
+  'topic_suggestion_cron',
+  'topic_suggestion_batch_size',
+];
 
 /**
  * Mask a secret key for display (show first 4 and last 4 chars)
@@ -37,7 +56,14 @@ router.get('/', async (req, res) => {
         fb_app_id: { value: '', masked: maskValue('fb_app_id', settings.fb_app_id), configured: !!settings.fb_app_id },
         fb_app_secret: { value: '', masked: maskValue('fb_app_secret', settings.fb_app_secret), configured: !!settings.fb_app_secret },
       },
+      auto_story: {},
     };
+
+    // Auto Story group — return raw values (not sensitive enough to mask, frontend cần để edit)
+    for (const k of AUTO_STORY_KEYS) {
+      const v = settings[k];
+      groups.auto_story[k] = { value: v ?? '', configured: !!v };
+    }
 
     // Check .env fallbacks
     const envFallbacks = {
@@ -85,14 +111,17 @@ router.put('/', async (req, res) => {
       fb_app_id: 'facebook',
       fb_app_secret: 'facebook',
     };
+    // Auto Story keys — group 'auto_story'
+    for (const k of AUTO_STORY_KEYS) allowedKeys[k] = 'auto_story';
 
     let updated = 0;
+    const changedKeys = new Set();
     for (const [key, value] of Object.entries(settings)) {
       if (!allowedKeys[key]) continue;
-      // Skip empty values (don't overwrite with nothing)
       if (value === undefined || value === null) continue;
-      // Allow explicitly setting empty string to "clear" a key
-      await setSetting(key, value.trim(), allowedKeys[key]);
+      const strValue = typeof value === 'string' ? value.trim() : String(value);
+      await setSetting(key, strValue, allowedKeys[key]);
+      changedKeys.add(key);
       updated++;
     }
 
@@ -102,6 +131,16 @@ router.put('/', async (req, res) => {
     // để exchangeToken có thể dùng ngay mà không cần restart
     if (settings.fb_app_id) process.env.FB_APP_ID = settings.fb_app_id.trim();
     if (settings.fb_app_secret) process.env.FB_APP_SECRET = settings.fb_app_secret.trim();
+
+    // Hot-reload schedulers nếu cron-related settings thay đổi
+    const storyKeys = ['auto_story_enabled', 'auto_story_cron'];
+    const topicKeys = ['topic_suggestion_enabled', 'topic_suggestion_cron'];
+    if (storyKeys.some(k => changedKeys.has(k))) {
+      restartStoryScheduler().catch(err => console.error('Restart story scheduler:', err.message));
+    }
+    if (topicKeys.some(k => changedKeys.has(k))) {
+      restartTopicSuggestionScheduler().catch(err => console.error('Restart topic scheduler:', err.message));
+    }
 
     res.json({ success: true, message: `Đã cập nhật ${updated} cài đặt`, updated });
   } catch (err) {
