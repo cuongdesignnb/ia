@@ -12,7 +12,6 @@ import path from 'path';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import { fileURLToPath } from 'url';
-import { toFile } from 'openai/uploads';
 import { MediaFile } from '../models/index.js';
 import { getSetting } from './settingsService.js';
 
@@ -92,96 +91,56 @@ export async function designAndSaveImage({
 
   console.log(`[AIDesigner] Model: ${modelName}, Reference: ${hasReference ? sourceImagePath : 'none'}`);
 
+  // Đồng nhất với flow tạo bài bình thường (CreatePost): luôn dùng images.generate
+  // với gpt-image-2. Khi có ảnh tham chiếu → gpt-4o-mini vision describe ảnh đó
+  // → đưa mô tả vào prompt để gpt-image-2 tái tạo ảnh tương tự.
   let response;
-  let designMethod = 'generate';
+  let designMethod = `generate-${modelName}`;
 
+  let finalPrompt = prompt;
   if (hasReference) {
-    // Bước 1: thử images.edit với gpt-image-1 (account có thể không hỗ trợ
-    // gpt-image-2 cho edit; dall-e-2 chất lượng quá thấp).
-    // Bước 2: fallback — gpt-4o-mini vision describe ảnh + gpt-image-2.generate
-    //   với mô tả đó. Giữ chất lượng gpt-image-2 cao, vẫn bám sát ảnh thật.
-    const editModelChain = ['gpt-image-1'];
-    let lastEditError = null;
-    for (const editModel of editModelChain) {
-      try {
-        console.log(`[AIDesigner] Trying images.edit with ${editModel}...`);
-        const imageFile = await toFile(fs.createReadStream(sourceImagePath), path.basename(sourceImagePath));
-        response = await client.images.edit({
-          model: editModel,
-          image: imageFile,
-          prompt,
-          size: '1024x1024',
-          n: 1,
-        });
-        designMethod = `edit-${editModel}`;
-        console.log(`[AIDesigner] ✅ Edit OK with ${editModel}`);
-        break;
-      } catch (err) {
-        lastEditError = err;
-        console.warn(`[AIDesigner] images.edit ${editModel} failed: ${err.message}`);
-      }
-    }
-
-    if (!response) {
-      console.log(`[AIDesigner] All edit attempts failed → vision describe + ${modelName} generate`);
-      let visionDescription = '';
-      try {
-        const imageBase64 = fs.readFileSync(sourceImagePath).toString('base64');
-        const ext = path.extname(sourceImagePath).slice(1).toLowerCase() || 'jpeg';
-        const mime = ext === 'jpg' ? 'jpeg' : ext;
-        const visionResp = await client.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'text', text: 'Describe this photograph for use as a visual reference. Cover: main subject(s) and pose, setting/background, lighting and mood, color palette, photographic style, key visual elements. Be specific and concrete. 80-150 words. English only.' },
-              { type: 'image_url', image_url: { url: `data:image/${mime};base64,${imageBase64}` } },
-            ],
-          }],
-          max_tokens: 300,
-        });
-        visionDescription = visionResp.choices[0]?.message?.content || '';
-        console.log(`[AIDesigner] Vision description: ${visionDescription.slice(0, 120)}...`);
-      } catch (visionErr) {
-        console.warn(`[AIDesigner] Vision describe failed: ${visionErr.message}`);
-      }
-
-      const enhancedPrompt = visionDescription
-        ? `${prompt}\n\nREFERENCE PHOTO DESCRIPTION (recreate a photographic image that closely matches this real reference):\n${visionDescription}\n\nIMPORTANT: Reproduce the same subject, composition, lighting, and mood as described above. Make it photorealistic, like a real news photograph.`
-        : prompt;
-
-      const params = {
-        model: modelName,
-        prompt: enhancedPrompt,
-        size: '1024x1024',
-        n: 1,
-      };
-      if (modelName.startsWith('gpt-image')) params.quality = 'high';
-
-      try {
-        response = await client.images.generate(params);
-        designMethod = `vision-guided-${modelName}`;
-      } catch (err) {
-        console.error(`[AIDesigner] Vision-guided generate failed: ${err.message}`);
-        throw lastEditError || err;
-      }
-    }
-  } else {
-    // images.generate from scratch — gpt-image-2 hỗ trợ quality
-    const params = {
-      model: modelName,
-      prompt,
-      size: '1024x1024',
-      n: 1,
-    };
-    if (modelName.startsWith('gpt-image')) params.quality = 'high';
+    let visionDescription = '';
     try {
-      response = await client.images.generate(params);
-      designMethod = `generate-${modelName}`;
-    } catch (err) {
-      console.error(`[AIDesigner] ${modelName} generate failed:`, err.message);
-      throw err;
+      const imageBase64 = fs.readFileSync(sourceImagePath).toString('base64');
+      const ext = path.extname(sourceImagePath).slice(1).toLowerCase() || 'jpeg';
+      const mime = ext === 'jpg' ? 'jpeg' : ext;
+      const visionResp = await client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Describe this photograph for use as a visual reference for AI image generation. Cover: main subject(s) and pose, setting/background, lighting and mood, color palette, photographic style, key visual elements. Be specific and concrete. 80-150 words. English only.' },
+            { type: 'image_url', image_url: { url: `data:image/${mime};base64,${imageBase64}` } },
+          ],
+        }],
+        max_tokens: 300,
+      });
+      visionDescription = visionResp.choices[0]?.message?.content || '';
+      console.log(`[AIDesigner] Vision description: ${visionDescription.slice(0, 120)}...`);
+    } catch (visionErr) {
+      console.warn(`[AIDesigner] Vision describe failed: ${visionErr.message}`);
     }
+
+    if (visionDescription) {
+      finalPrompt = `${prompt}\n\nREFERENCE PHOTO DESCRIPTION (recreate a photographic image that closely matches this real reference):\n${visionDescription}\n\nIMPORTANT: Reproduce the same subject, composition, lighting, and mood as described above. Make it photorealistic, like a real news photograph.`;
+      designMethod = `vision-guided-${modelName}`;
+    }
+  }
+
+  const params = {
+    model: modelName,
+    prompt: finalPrompt,
+    size: '1024x1024',
+    n: 1,
+  };
+  if (modelName.startsWith('gpt-image')) params.quality = 'high';
+
+  try {
+    response = await client.images.generate(params);
+    console.log(`[AIDesigner] ✅ ${designMethod} OK`);
+  } catch (err) {
+    console.error(`[AIDesigner] ${modelName} generate failed:`, err.message);
+    throw err;
   }
 
   const b64 = response.data?.[0]?.b64_json;
