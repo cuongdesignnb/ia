@@ -93,31 +93,95 @@ export async function designAndSaveImage({
   console.log(`[AIDesigner] Model: ${modelName}, Reference: ${hasReference ? sourceImagePath : 'none'}`);
 
   let response;
-  try {
-    if (hasReference) {
-      // images.edit với reference image — KHÔNG có param 'quality' (chỉ generate mới hỗ trợ)
-      const imageFile = await toFile(fs.createReadStream(sourceImagePath), path.basename(sourceImagePath));
-      response = await client.images.edit({
-        model: modelName,
-        image: imageFile,
-        prompt,
-        size: '1024x1024',
-        n: 1,
-      });
-    } else {
-      // images.generate from scratch — gpt-image-2 hỗ trợ quality
+  let designMethod = 'generate';
+
+  if (hasReference) {
+    // Bước 1: thử images.edit với gpt-image-1 (account có thể không hỗ trợ
+    // gpt-image-2 cho edit; dall-e-2 chất lượng quá thấp).
+    // Bước 2: fallback — gpt-4o-mini vision describe ảnh + gpt-image-2.generate
+    //   với mô tả đó. Giữ chất lượng gpt-image-2 cao, vẫn bám sát ảnh thật.
+    const editModelChain = ['gpt-image-1'];
+    let lastEditError = null;
+    for (const editModel of editModelChain) {
+      try {
+        console.log(`[AIDesigner] Trying images.edit with ${editModel}...`);
+        const imageFile = await toFile(fs.createReadStream(sourceImagePath), path.basename(sourceImagePath));
+        response = await client.images.edit({
+          model: editModel,
+          image: imageFile,
+          prompt,
+          size: '1024x1024',
+          n: 1,
+        });
+        designMethod = `edit-${editModel}`;
+        console.log(`[AIDesigner] ✅ Edit OK with ${editModel}`);
+        break;
+      } catch (err) {
+        lastEditError = err;
+        console.warn(`[AIDesigner] images.edit ${editModel} failed: ${err.message}`);
+      }
+    }
+
+    if (!response) {
+      console.log(`[AIDesigner] All edit attempts failed → vision describe + ${modelName} generate`);
+      let visionDescription = '';
+      try {
+        const imageBase64 = fs.readFileSync(sourceImagePath).toString('base64');
+        const ext = path.extname(sourceImagePath).slice(1).toLowerCase() || 'jpeg';
+        const mime = ext === 'jpg' ? 'jpeg' : ext;
+        const visionResp = await client.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Describe this photograph for use as a visual reference. Cover: main subject(s) and pose, setting/background, lighting and mood, color palette, photographic style, key visual elements. Be specific and concrete. 80-150 words. English only.' },
+              { type: 'image_url', image_url: { url: `data:image/${mime};base64,${imageBase64}` } },
+            ],
+          }],
+          max_tokens: 300,
+        });
+        visionDescription = visionResp.choices[0]?.message?.content || '';
+        console.log(`[AIDesigner] Vision description: ${visionDescription.slice(0, 120)}...`);
+      } catch (visionErr) {
+        console.warn(`[AIDesigner] Vision describe failed: ${visionErr.message}`);
+      }
+
+      const enhancedPrompt = visionDescription
+        ? `${prompt}\n\nREFERENCE PHOTO DESCRIPTION (recreate a photographic image that closely matches this real reference):\n${visionDescription}\n\nIMPORTANT: Reproduce the same subject, composition, lighting, and mood as described above. Make it photorealistic, like a real news photograph.`
+        : prompt;
+
       const params = {
         model: modelName,
-        prompt,
+        prompt: enhancedPrompt,
         size: '1024x1024',
         n: 1,
       };
       if (modelName.startsWith('gpt-image')) params.quality = 'high';
-      response = await client.images.generate(params);
+
+      try {
+        response = await client.images.generate(params);
+        designMethod = `vision-guided-${modelName}`;
+      } catch (err) {
+        console.error(`[AIDesigner] Vision-guided generate failed: ${err.message}`);
+        throw lastEditError || err;
+      }
     }
-  } catch (err) {
-    console.error(`[AIDesigner] ${modelName} failed:`, err.message);
-    throw err;
+  } else {
+    // images.generate from scratch — gpt-image-2 hỗ trợ quality
+    const params = {
+      model: modelName,
+      prompt,
+      size: '1024x1024',
+      n: 1,
+    };
+    if (modelName.startsWith('gpt-image')) params.quality = 'high';
+    try {
+      response = await client.images.generate(params);
+      designMethod = `generate-${modelName}`;
+    } catch (err) {
+      console.error(`[AIDesigner] ${modelName} generate failed:`, err.message);
+      throw err;
+    }
   }
 
   const b64 = response.data?.[0]?.b64_json;
@@ -154,11 +218,13 @@ export async function designAndSaveImage({
     size: buffer.length,
     width: meta.width,
     height: meta.height,
-    license_type: `AI Designed (${modelName})`,
+    license_type: `AI Designed (${designMethod})`,
     author: 'AI',
-    attribution_text: `Designed by ${modelName}${hasReference ? ' from reference photo' : ''}`,
+    attribution_text: hasReference
+      ? `Designed via ${designMethod} from reference photo`
+      : `Designed via ${designMethod}`,
     uploaded_by: 'auto_story',
-    tags: ['ai-designed', hasReference ? 'with-reference' : 'from-scratch'],
+    tags: ['ai-designed', hasReference ? 'with-reference' : 'from-scratch', designMethod],
   });
 
   console.log(`[AIDesigner] ✅ Saved: ${relativePath}`);
