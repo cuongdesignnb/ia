@@ -364,10 +364,12 @@ router.post('/:id/redesign', upload.single('image'), async (req, res) => {
     await genPost.update({ final_image_id: finalImage.id });
 
     if (referenceMediaId) {
+      // ENUM: real_photo_overlay (Sharp) | ai_reference_based (AI gen)
+      const usedSharp = referenceRelativePath && !forceAI;
       await GeneratedImage.create({
         story_id: genPost.story_id,
         generated_post_id: genPost.id,
-        mode: 'ai_redesign',
+        mode: usedSharp ? 'real_photo_overlay' : 'ai_reference_based',
         source_media_id: referenceMediaId,
         output_media_id: finalImage.id,
         text_overlay: { headline: genPost.image_headline, subheadline: genPost.image_subheadline },
