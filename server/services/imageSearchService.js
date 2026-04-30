@@ -7,6 +7,7 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
+import OpenAI from 'openai';
 import { v4 as uuidv4 } from 'uuid';
 import { fileURLToPath } from 'url';
 import { MediaFile, MediaFolder } from '../models/index.js';
@@ -198,8 +199,11 @@ async function downloadAndSaveImage(imageInfo, folderId, storyId) {
 
   const buffer = Buffer.from(response.data);
 
-  // Determine extension
-  const contentType = response.headers['content-type'] || 'image/jpeg';
+  // Determine extension — reject non-image responses (HTML pages, redirects, etc.)
+  const contentType = (response.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+  if (!contentType.startsWith('image/')) {
+    throw new Error(`Not an image response (content-type: ${contentType || 'unknown'})`);
+  }
   const extMap = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' };
   const ext = extMap[contentType] || '.jpg';
   const filename = `${uuidv4()}${ext}`;
@@ -251,6 +255,104 @@ async function downloadAndSaveImage(imageInfo, folderId, storyId) {
   });
 
   return mediaFile;
+}
+
+/**
+ * Tìm ảnh thật qua GPT-5 + web_search tool (OpenAI Responses API).
+ * Mô phỏng ChatGPT app: model lên web tìm URL ảnh thật từ Wikipedia/Reuters/AP/BBC...
+ * @param {Object} story - TrueStory record
+ * @param {number} maxImages
+ * @returns {Array<MediaFile>}
+ */
+export async function searchRealImagesViaWeb(story, maxImages = 3) {
+  const apiKey = await getSetting('openai_api_key', 'OPENAI_API_KEY');
+  if (!apiKey) {
+    console.warn('[ImageSearch] No OpenAI key — skipping web search');
+    return [];
+  }
+
+  const folder = await getOrCreateStoryFolder(story);
+  const client = new OpenAI({ apiKey, timeout: 120000 });
+  const model = await getSetting('web_image_search_model') || 'gpt-5-mini';
+
+  const eventLine = [
+    story.title,
+    story.event_date && `(${story.event_date})`,
+    story.location,
+  ].filter(Boolean).join(' — ');
+
+  const prompt = `Tìm ${maxImages} URL ảnh thật chất lượng cao về sự kiện sau, dùng web_search:
+
+Sự kiện: ${eventLine}
+Tóm tắt: ${(story.summary || '').slice(0, 300)}
+
+YÊU CẦU NGHIÊM NGẶT:
+1. URL phải trỏ TRỰC TIẾP đến file ảnh, kết thúc bằng .jpg/.jpeg/.png/.webp (không phải URL trang Wikipedia/article).
+   - Đúng: https://upload.wikimedia.org/wikipedia/commons/.../File.jpg
+   - SAI: https://en.wikipedia.org/wiki/Article_Name
+2. Nguồn uy tín: Wikimedia Commons, Wikipedia, NASA, BBC, Reuters, AP, AFP, National Geographic, public domain archives.
+3. Ảnh phải LIÊN QUAN TRỰC TIẾP đến sự kiện cụ thể (không phải minh hoạ chung chung).
+4. Ưu tiên ảnh độ phân giải cao (>= 1200px).
+5. KHÔNG dùng ảnh có watermark "preview", thumbnail, hoặc ảnh từ Getty/Shutterstock có paywall.
+
+CHỈ TRẢ VỀ JSON ARRAY (không text khác, không markdown fence):
+[
+  {"url": "https://...", "source": "Wikimedia Commons", "description": "Khoảnh khắc..."},
+  ...
+]`;
+
+  let raw = '';
+  try {
+    const response = await client.responses.create({
+      model,
+      tools: [{ type: 'web_search_preview' }],
+      input: prompt,
+    });
+    raw = response.output_text || '';
+  } catch (err) {
+    console.error('[ImageSearch] Web search call failed:', err.message);
+    return [];
+  }
+
+  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  const match = cleaned.match(/\[[\s\S]*\]/);
+  if (!match) {
+    console.warn('[ImageSearch] Web search returned no JSON');
+    return [];
+  }
+
+  let candidates;
+  try {
+    candidates = JSON.parse(match[0]);
+    if (!Array.isArray(candidates)) return [];
+  } catch (err) {
+    console.error('[ImageSearch] Web search JSON parse failed:', err.message);
+    return [];
+  }
+
+  console.log(`[ImageSearch] Web search found ${candidates.length} candidate URLs`);
+
+  const results = [];
+  for (const c of candidates) {
+    if (!c?.url || typeof c.url !== 'string') continue;
+    if (results.length >= maxImages) break;
+    try {
+      const mediaFile = await downloadAndSaveImage({
+        url: c.url,
+        source_url: c.url,
+        license_type: c.source || 'Web',
+        author: c.source || 'Unknown',
+        attribution_text: `${c.description || ''} — Source: ${c.source || 'web'} (via GPT web search)`.trim(),
+        original_name: `web_${uuidv4()}.jpg`,
+      }, folder.id, story.id);
+      if (mediaFile) results.push(mediaFile);
+    } catch (err) {
+      console.warn(`[ImageSearch] Web URL download skipped: ${err.message} — ${c.url}`);
+    }
+  }
+
+  console.log(`[ImageSearch] ✅ Web search downloaded ${results.length}/${candidates.length} images`);
+  return results;
 }
 
 /**
@@ -377,4 +479,4 @@ async function getOrCreateStoryFolder(story) {
   return folder;
 }
 
-export default { searchAndDownloadImages, generateAIImageForStory };
+export default { searchAndDownloadImages, generateAIImageForStory, searchRealImagesViaWeb };

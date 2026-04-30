@@ -3,7 +3,7 @@
  * Orchestrator điều phối toàn bộ pipeline: discover → search images → write → compose → draft
  */
 import { discoverStory } from './storyDiscoveryService.js';
-import { searchAndDownloadImages, generateAIImageForStory } from './imageSearchService.js';
+import { searchAndDownloadImages, generateAIImageForStory, searchRealImagesViaWeb } from './imageSearchService.js';
 import { writeArticle } from './articleWriterService.js';
 import { composeImage } from './imageComposerService.js';
 import { ContentJob, GeneratedPost, GeneratedImage, MediaFile, FbPage } from '../models/index.js';
@@ -33,12 +33,26 @@ export async function runPipeline(topic = null, category = null, fbPageId = null
     await job.update({ story_id: story.id });
     console.log(`[Pipeline] Story found: "${story.title_vi || story.title}"`);
 
-    // Step 2: Search images (with AI fallback)
+    // Step 2: Search images — chuỗi fallback 3 cấp
+    //   2a. GPT-5 + web_search: tìm ảnh thật từ Wikipedia/Reuters/AP/...
+    //   2b. Wikimedia + Unsplash: search trực tiếp API
+    //   2c. AI image generation: cuối cùng nếu không có ảnh thật nào
     await updateJobStatus(job, 'searching_images', 2);
     console.log(`[Pipeline] Job #${job.id} — Step 2: Searching images...`);
     const searchKeywords = extractSearchKeywords(story);
-    const mediaFiles = await searchAndDownloadImages(story, searchKeywords, 5);
-    console.log(`[Pipeline] Found ${mediaFiles.length} real photos`);
+    let mediaFiles = [];
+
+    try {
+      mediaFiles = await searchRealImagesViaWeb(story, 3);
+    } catch (err) {
+      console.error(`[Pipeline] Web search failed:`, err.message);
+    }
+
+    if (mediaFiles.length === 0) {
+      console.log(`[Pipeline] Web search empty — falling back to Wikimedia/Unsplash`);
+      mediaFiles = await searchAndDownloadImages(story, searchKeywords, 5);
+    }
+    console.log(`[Pipeline] Real photos collected: ${mediaFiles.length}`);
 
     if (mediaFiles.length === 0) {
       console.log(`[Pipeline] No real photos found — falling back to AI image generation`);
