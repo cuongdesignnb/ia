@@ -59,7 +59,12 @@ function buildDiscoveryPrompt(topic, categories, existingTitles) {
     : '';
 
   const topicInstruction = topic
-    ? `Tìm câu chuyện có thật về chủ đề: "${topic}"`
+    ? `NHIỆM VỤ CHÍNH: Tìm 1 câu chuyện có thật, trực tiếp về chủ đề: "${topic}"
+
+QUY TẮC GIỮ ĐÚNG CHỦ ĐỀ (CỰC KỲ QUAN TRỌNG):
+- Nếu "${topic}" là chủ đề rộng/chung chung (vd: "bí ẩn Sao Mộc"), CHỌN 1 sự kiện CỤ THỂ trong phạm vi đó (vd: tàu Voyager 1 chụp Great Red Spot, sao chổi Shoemaker-Levy 9 đâm Sao Mộc 1994...).
+- Nếu chủ đề trùng với câu chuyện trong avoid list, chọn 1 GÓC KHÁC của CÙNG chủ đề đó (cùng sự kiện nhưng góc nhìn khác, nhân vật phụ, hậu quả lâu dài...). KHÔNG được nhảy sang chủ đề khác chỉ để né trùng.
+- TUYỆT ĐỐI KHÔNG lệch sang chủ đề không liên quan. Nếu thực sự không có sự kiện thật nào về "${topic}", thà fail còn hơn bịa hay lạc đề.`
     : `Tìm 1 câu chuyện có thật ít người biết, thuộc 1 trong các thể loại: ${categories.join(', ')}`;
 
   return `Bạn là nhà nghiên cứu chuyên tìm câu chuyện có thật.

@@ -54,6 +54,7 @@ router.get('/', async (req, res) => {
         { model: TrueStory, as: 'story', attributes: ['id', 'title', 'title_vi', 'category', 'verified_facts', 'source_urls'] },
         { model: FbPage, as: 'fbPage', attributes: ['id', 'name', 'page_id', 'avatar_url'] },
         { model: MediaFile, as: 'finalImage', attributes: ['id', 'path', 'thumbnail_path', 'width', 'height'] },
+        { model: ContentJob, as: 'contentJob', attributes: ['id', 'topic'] },
       ],
     });
 

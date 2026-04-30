@@ -325,7 +325,14 @@ export default function AutoContentPage() {
             {runningJobs.map(job => (
               <div key={job.id} className="job-card running">
                 <div className="job-header">
-                  <span className="job-topic">{job.topic}</span>
+                  <div className="job-topic-block">
+                    <span className="job-topic">{job.topic}</span>
+                    {job.story?.title_vi && job.story.title_vi !== job.topic && (
+                      <span className="job-story-resolved">
+                        → <strong>{job.story.title_vi}</strong>
+                      </span>
+                    )}
+                  </div>
                   <div className="job-header-right">
                     {job.started_at && (
                       <span className="job-elapsed" title="Đã chạy">
@@ -385,6 +392,11 @@ export default function AutoContentPage() {
                     <span className="draft-category">{draft.story?.category || 'Chưa phân loại'}</span>
                     {draft.fbPage && <span className="draft-page">{draft.fbPage.name}</span>}
                   </div>
+                  {draft.contentJob?.topic && draft.story?.title_vi && draft.contentJob.topic !== draft.story.title_vi && (
+                    <div className="draft-topic-trace">
+                      Yêu cầu: <em>{draft.contentJob.topic}</em>
+                    </div>
+                  )}
                   <h3 className="draft-hook">{draft.hook || draft.story?.title_vi}</h3>
                   <p className="draft-preview">{(draft.post_body || '').substring(0, 120)}...</p>
                   <div className="draft-actions">

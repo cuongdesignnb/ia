@@ -56,6 +56,12 @@
 .btn-cancel-job:hover { background: rgba(251,146,60,0.15); border-color: rgba(251,146,60,0.3); color: #fb923c; }
 .btn-delete-job:hover { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #ef4444; }
 .job-elapsed { display: flex; align-items: center; gap: 4px; color: #888; font-size: 11px; padding: 3px 8px; background: rgba(255,255,255,0.04); border-radius: 4px; font-variant-numeric: tabular-nums; }
+.job-topic-block { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.job-topic-block .job-topic { color: #f0f0f0; font-weight: 600; }
+.job-story-resolved { color: #888; font-size: 12px; line-height: 1.4; }
+.job-story-resolved strong { color: #818cf8; font-weight: 500; }
+.draft-topic-trace { color: #666; font-size: 11px; margin: 0 0 6px; padding: 4px 8px; background: rgba(255,255,255,0.03); border-radius: 4px; }
+.draft-topic-trace em { color: #888; font-style: normal; }
 .job-card.cancelled { border-color: rgba(251,146,60,0.3); }
 .status-cancelled { background: rgba(251,146,60,0.15); color: #fb923c; }
 
