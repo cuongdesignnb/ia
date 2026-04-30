@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, X, RefreshCw, Send, Image, ExternalLink, Edit3, Save } from 'lucide-react';
+import { ArrowLeft, Check, X, RefreshCw, Send, Image, ExternalLink, Edit3, Save, Trash2 } from 'lucide-react';
 import { useToast } from '../components/Toast';
-import { getGeneratedPost, updateGeneratedPost, approveGeneratedPost, rejectGeneratedPost, publishGeneratedPost, regeneratePost, recomposeImage, getFbPages } from '../utils/api';
+import { getGeneratedPost, updateGeneratedPost, approveGeneratedPost, rejectGeneratedPost, publishGeneratedPost, regeneratePost, recomposeImage, getFbPages, deleteGeneratedPost } from '../utils/api';
 import './StoryReviewPage.css';
 
 export default function StoryReviewPage() {
@@ -88,6 +88,17 @@ export default function StoryReviewPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm('Xoá bản nháp này? Thao tác không thể hoàn tác.')) return;
+    try {
+      await deleteGeneratedPost(id);
+      addToast('Đã xoá bản nháp', 'success');
+      navigate('/auto-content');
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Lỗi xoá', 'error');
+    }
+  };
+
   const handlePageChange = async (pageId) => {
     try {
       await updateGeneratedPost(id, { fb_page_id: parseInt(pageId) });
@@ -134,6 +145,9 @@ export default function StoryReviewPage() {
               <Send size={16} /> {publishing ? 'Đang đăng...' : 'Publish'}
             </button>
           )}
+          <button className="btn-action btn-delete-lg" onClick={handleDelete} title="Xoá bản nháp">
+            <Trash2 size={16} /> Xoá
+          </button>
         </div>
       </div>
 

@@ -19,6 +19,8 @@
 .btn-publish-lg { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; }
 .btn-publish-lg:hover:not(:disabled) { box-shadow: 0 4px 20px rgba(99,102,241,0.4); }
 .btn-publish-lg:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-delete-lg { background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); }
+.btn-delete-lg:hover { background: rgba(239,68,68,0.22); }
 
 /* Layout */
 .review-layout { display: grid; grid-template-columns: 1fr 380px; gap: 24px; }

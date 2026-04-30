@@ -83,6 +83,8 @@
 .btn-approve:hover { background: rgba(34,197,94,0.25); }
 .btn-publish { background: rgba(99,102,241,0.15); color: #818cf8; }
 .btn-publish:hover { background: rgba(99,102,241,0.25); }
+.btn-delete { background: rgba(239,68,68,0.12); color: #ef4444; padding: 6px 10px; }
+.btn-delete:hover { background: rgba(239,68,68,0.22); }
 
 /* Empty State */
 .empty-state { text-align: center; padding: 48px; color: #666; }

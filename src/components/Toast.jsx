@@ -30,6 +30,8 @@ export function ToastProvider({ children }) {
     error: (msg, dur) => addToast(msg, 'error', dur || 8000),
     warning: (msg, dur) => addToast(msg, 'warning', dur || 6000),
     info: (msg, dur) => addToast(msg, 'info', dur),
+    // Low-level — cho code dùng pattern { addToast } = useToast()
+    addToast,
   }), [addToast]);
 
   const icons = {

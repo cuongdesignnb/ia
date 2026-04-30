@@ -5,7 +5,7 @@ import { useToast } from '../components/Toast';
 import {
   createStoryJob, getStoryJobs, getGeneratedPosts, approveGeneratedPost, publishGeneratedPost,
   getTopicSuggestions, generateTopicSuggestions, pickTopicSuggestion, dismissTopicSuggestion,
-  retryStoryJob,
+  retryStoryJob, deleteGeneratedPost,
 } from '../utils/api';
 import './AutoContentPage.css';
 
@@ -127,6 +127,17 @@ export default function AutoContentPage() {
       load();
     } catch (err) {
       addToast(err.response?.data?.error || 'Lỗi retry', 'error');
+    }
+  };
+
+  const handleDeleteDraft = async (id, title) => {
+    if (!confirm(`Xoá bản nháp "${title}"?\nThao tác không thể hoàn tác.`)) return;
+    try {
+      await deleteGeneratedPost(id);
+      setDrafts(prev => prev.filter(d => d.id !== id));
+      addToast('Đã xoá bản nháp', 'success');
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Lỗi xoá bản nháp', 'error');
     }
   };
 
@@ -320,6 +331,13 @@ export default function AutoContentPage() {
                     </button>
                     <button className="btn-sm btn-publish" onClick={() => handleQuickPublish(draft.id)}>
                       <Sparkles size={14} /> Publish
+                    </button>
+                    <button
+                      className="btn-sm btn-delete"
+                      onClick={() => handleDeleteDraft(draft.id, draft.hook || draft.story?.title_vi || 'Bản nháp')}
+                      title="Xoá bản nháp"
+                    >
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>

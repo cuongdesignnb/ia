@@ -239,4 +239,20 @@ router.post('/:id/recompose', async (req, res) => {
   }
 });
 
+// Delete generated post (draft). Cleanup GeneratedImage records nhưng giữ
+// MediaFile để không phá thư viện (user có thể đang dùng ảnh ở chỗ khác).
+router.delete('/:id', async (req, res) => {
+  try {
+    const post = await GeneratedPost.findByPk(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+
+    await GeneratedImage.destroy({ where: { generated_post_id: post.id } });
+    await post.destroy();
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;
