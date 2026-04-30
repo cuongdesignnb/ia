@@ -148,7 +148,16 @@ export async function runPipeline(topic = null, category = null, fbPageId = null
 
     return generatedPost;
   } catch (err) {
-    console.error(`[Pipeline] ❌ Job #${job.id} failed:`, err.message);
+    console.error(`[Pipeline] ❌ Job #${job.id} ${err.message === 'CANCELLED' ? 'cancelled' : 'failed'}:`, err.message);
+    // Reload để check nếu user đã cancel — không ghi đè status='cancelled' bằng 'failed'
+    await job.reload();
+    if (job.status === 'cancelled' || err.message === 'CANCELLED') {
+      // Đã được set bởi cancel endpoint hoặc chính pipeline phát hiện → giữ nguyên
+      if (job.status !== 'cancelled') {
+        await job.update({ status: 'cancelled', finished_at: new Date(), error_message: 'Cancelled by user' });
+      }
+      return null;
+    }
     await job.update({
       status: 'failed',
       error_message: err.message,
@@ -164,6 +173,11 @@ function extractSearchKeywords(story) {
 }
 
 async function updateJobStatus(job, status, step) {
+  // Cooperative cancellation: trước mỗi transition, check user đã huỷ chưa
+  await job.reload();
+  if (job.status === 'cancelled') {
+    throw new Error('CANCELLED');
+  }
   await job.update({ status, current_step: step });
 }
 

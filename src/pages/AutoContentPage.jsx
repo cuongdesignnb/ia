@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bot, Play, RefreshCw, Eye, Check, X, Clock, Loader2, Sparkles, AlertCircle, Lightbulb, Plus, Trash2 } from 'lucide-react';
+import { Bot, Play, RefreshCw, Eye, Check, X, Clock, Loader2, Sparkles, AlertCircle, Lightbulb, Plus, Trash2, StopCircle } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import {
   createStoryJob, getStoryJobs, getGeneratedPosts, approveGeneratedPost, publishGeneratedPost,
   getTopicSuggestions, generateTopicSuggestions, pickTopicSuggestion, dismissTopicSuggestion,
-  retryStoryJob, deleteGeneratedPost,
+  retryStoryJob, cancelStoryJob, deleteStoryJob, deleteGeneratedPost,
 } from '../utils/api';
 import './AutoContentPage.css';
 
@@ -22,6 +22,13 @@ export default function AutoContentPage() {
   const [loading, setLoading] = useState(true);
   const { addToast } = useToast();
   const navigate = useNavigate();
+  const jobsSectionRef = useRef(null);
+
+  const scrollToJobs = () => {
+    setTimeout(() => {
+      jobsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
+  };
 
   const load = useCallback(async () => {
     try {
@@ -54,9 +61,10 @@ export default function AutoContentPage() {
     setCreating(true);
     try {
       await createStoryJob({ topic: topic || null });
-      addToast('Đang tạo bài tự động...', 'info');
+      addToast('Đã thêm vào hàng đợi', 'info');
       setTopic('');
       setTimeout(load, 2000);
+      scrollToJobs();
     } catch (err) {
       addToast(err.response?.data?.error || 'Lỗi tạo job', 'error');
     } finally {
@@ -102,8 +110,9 @@ export default function AutoContentPage() {
     setPickingId(id);
     try {
       await pickTopicSuggestion(id);
-      addToast('Đã bắt đầu tạo bài từ gợi ý!', 'info');
+      addToast('Đã thêm vào hàng đợi', 'info');
       load();
+      scrollToJobs();
     } catch (err) {
       addToast(err.response?.data?.error || 'Lỗi pick gợi ý', 'error');
     } finally {
@@ -128,6 +137,40 @@ export default function AutoContentPage() {
     } catch (err) {
       addToast(err.response?.data?.error || 'Lỗi retry', 'error');
     }
+  };
+
+  const handleCancelJob = async (jobId) => {
+    if (!confirm('Huỷ job này? Pipeline sẽ dừng ở step kế tiếp.')) return;
+    try {
+      await cancelStoryJob(jobId);
+      addToast('Đã huỷ job', 'info');
+      load();
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Lỗi huỷ job', 'error');
+    }
+  };
+
+  const handleDeleteJob = async (jobId) => {
+    if (!confirm('Xoá job này khỏi danh sách? Bản nháp đã tạo (nếu có) vẫn còn.')) return;
+    try {
+      await deleteStoryJob(jobId);
+      setJobs(prev => prev.filter(j => j.id !== jobId));
+      addToast('Đã xoá job', 'success');
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Lỗi xoá job', 'error');
+    }
+  };
+
+  // "Đã chạy 3 phút trước" / "vừa xong"
+  const formatElapsed = (startedAt) => {
+    if (!startedAt) return '';
+    const ms = Date.now() - new Date(startedAt).getTime();
+    const sec = Math.floor(ms / 1000);
+    if (sec < 60) return `${sec}s`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min}p`;
+    const h = Math.floor(min / 60);
+    return `${h}h${min % 60}p`;
   };
 
   const handleDeleteDraft = async (id, title) => {
@@ -155,7 +198,8 @@ export default function AutoContentPage() {
   })();
 
   const pendingDrafts = drafts.filter(d => d.status === 'draft');
-  const runningJobs = jobs.filter(j => !['completed', 'failed'].includes(j.status));
+  const runningJobs = jobs.filter(j => !['completed', 'failed', 'cancelled'].includes(j.status));
+  const cancelledJobs = jobs.filter(j => j.status === 'cancelled');
 
   if (loading) return <div className="auto-content-page"><div className="loading-spinner" style={{ width: 32, height: 32 }} /></div>;
 
@@ -273,16 +317,37 @@ export default function AutoContentPage() {
         )}
       </div>
 
-      {/* Running Jobs */}
+      {/* Scheduled / Running Jobs */}
       {runningJobs.length > 0 && (
-        <div className="section">
-          <h2><Loader2 size={20} className="spin" /> Jobs đang chạy</h2>
+        <div className="section" ref={jobsSectionRef}>
+          <h2><Clock size={20} /> Jobs đã lên lịch ({runningJobs.length})</h2>
           <div className="jobs-list">
             {runningJobs.map(job => (
               <div key={job.id} className="job-card running">
                 <div className="job-header">
                   <span className="job-topic">{job.topic}</span>
-                  <span className={`job-status status-${job.status}`}>{job.status}</span>
+                  <div className="job-header-right">
+                    {job.started_at && (
+                      <span className="job-elapsed" title="Đã chạy">
+                        <Clock size={12} /> {formatElapsed(job.started_at)}
+                      </span>
+                    )}
+                    <span className={`job-status status-${job.status}`}>{job.status}</span>
+                    <button
+                      className="btn-icon-job btn-cancel-job"
+                      onClick={() => handleCancelJob(job.id)}
+                      title="Huỷ job"
+                    >
+                      <StopCircle size={14} />
+                    </button>
+                    <button
+                      className="btn-icon-job btn-delete-job"
+                      onClick={() => handleDeleteJob(job.id)}
+                      title="Xoá job khỏi danh sách"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
                 <div className="pipeline-progress">
                   {STEP_LABELS.map((label, i) => (
@@ -347,23 +412,32 @@ export default function AutoContentPage() {
         )}
       </div>
 
-      {/* Recent Failed Jobs */}
-      {jobs.filter(j => j.status === 'failed').length > 0 && (
+      {/* Failed / Cancelled Jobs */}
+      {(jobs.filter(j => j.status === 'failed').length + cancelledJobs.length) > 0 && (
         <div className="section">
-          <h2><AlertCircle size={20} /> Jobs lỗi gần đây</h2>
+          <h2><AlertCircle size={20} /> Jobs lỗi / đã huỷ</h2>
           <div className="jobs-list">
-            {jobs.filter(j => j.status === 'failed').slice(0, 5).map(job => (
-              <div key={job.id} className="job-card failed">
+            {[...jobs.filter(j => j.status === 'failed'), ...cancelledJobs].slice(0, 8).map(job => (
+              <div key={job.id} className={`job-card ${job.status === 'cancelled' ? 'cancelled' : 'failed'}`}>
                 <div className="job-header">
                   <span className="job-topic">{job.topic}</span>
                   <div className="job-header-right">
                     <button className="btn-retry" onClick={() => handleRetryJob(job.id)} title="Chạy lại">
                       <RefreshCw size={14} /> Retry
                     </button>
-                    <span className="job-status status-failed">Lỗi</span>
+                    <button
+                      className="btn-icon-job btn-delete-job"
+                      onClick={() => handleDeleteJob(job.id)}
+                      title="Xoá khỏi danh sách"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                    <span className={`job-status status-${job.status}`}>
+                      {job.status === 'cancelled' ? 'Đã huỷ' : 'Lỗi'}
+                    </span>
                   </div>
                 </div>
-                <p className="job-error">{job.error_message}</p>
+                {job.error_message && <p className="job-error">{job.error_message}</p>}
               </div>
             ))}
           </div>

@@ -80,12 +80,43 @@ router.post('/jobs/:id/retry', async (req, res) => {
     const job = await ContentJob.findByPk(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
 
-    await job.update({ status: 'pending', error_message: null, started_at: new Date() });
+    await job.update({ status: 'pending', error_message: null, started_at: new Date(), finished_at: null });
 
     runPipeline(job.topic !== 'AI tự chọn' ? job.topic : null)
       .catch(err => console.error(`[Job #${job.id}] Retry error:`, err.message));
 
     res.json({ success: true, job_id: job.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Cancel a running/pending job — pipeline check status giữa các step và dừng
+router.post('/jobs/:id/cancel', async (req, res) => {
+  try {
+    const job = await ContentJob.findByPk(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (['completed', 'failed', 'cancelled'].includes(job.status)) {
+      return res.status(400).json({ error: `Job đã ${job.status}, không thể huỷ` });
+    }
+    await job.update({
+      status: 'cancelled',
+      error_message: 'Cancelled by user',
+      finished_at: new Date(),
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete job record entirely
+router.delete('/jobs/:id', async (req, res) => {
+  try {
+    const job = await ContentJob.findByPk(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    await job.destroy();
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

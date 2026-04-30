@@ -103,6 +103,8 @@ export const createStoryJob = (data) => api.post('/true-stories/jobs', data, { t
 export const getStoryJobs = (params) => api.get('/true-stories/jobs', { params });
 export const getStoryJob = (id) => api.get(`/true-stories/jobs/${id}`);
 export const retryStoryJob = (id) => api.post(`/true-stories/jobs/${id}/retry`);
+export const cancelStoryJob = (id) => api.post(`/true-stories/jobs/${id}/cancel`);
+export const deleteStoryJob = (id) => api.delete(`/true-stories/jobs/${id}`);
 export const getStories = (params) => api.get('/true-stories', { params });
 export const getStory = (id) => api.get(`/true-stories/${id}`);
 

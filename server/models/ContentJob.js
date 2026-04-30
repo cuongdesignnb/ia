@@ -17,7 +17,7 @@ const ContentJob = sequelize.define('ContentJob', {
     defaultValue: 'manual',
   },
   status: {
-    type: DataTypes.ENUM('pending', 'discovering', 'verifying', 'searching_images', 'writing', 'composing', 'completed', 'failed'),
+    type: DataTypes.ENUM('pending', 'discovering', 'verifying', 'searching_images', 'writing', 'composing', 'completed', 'failed', 'cancelled'),
     defaultValue: 'pending',
   },
   current_step: {
