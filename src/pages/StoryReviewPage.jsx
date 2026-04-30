@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, X, RefreshCw, Send, Image, ExternalLink, Edit3, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, X, RefreshCw, Send, ExternalLink, Edit3, Save, Trash2, Upload, Wand2 } from 'lucide-react';
 import { useToast } from '../components/Toast';
-import { getGeneratedPost, updateGeneratedPost, approveGeneratedPost, rejectGeneratedPost, publishGeneratedPost, regeneratePost, recomposeImage, getFbPages, deleteGeneratedPost } from '../utils/api';
+import { getGeneratedPost, updateGeneratedPost, approveGeneratedPost, rejectGeneratedPost, publishGeneratedPost, regeneratePost, getFbPages, deleteGeneratedPost, redesignGeneratedPost } from '../utils/api';
 import './StoryReviewPage.css';
 
 export default function StoryReviewPage() {
@@ -16,6 +16,8 @@ export default function StoryReviewPage() {
   const [editBody, setEditBody] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [redesigning, setRedesigning] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     loadPost();
@@ -98,6 +100,31 @@ export default function StoryReviewPage() {
       addToast(err.response?.data?.error || 'Lỗi xoá', 'error');
     }
   };
+
+  const runRedesign = async (options) => {
+    setRedesigning(true);
+    try {
+      await redesignGeneratedPost(id, options);
+      addToast('Đã tạo lại ảnh!', 'success');
+      loadPost();
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Lỗi tạo lại ảnh', 'error');
+    } finally {
+      setRedesigning(false);
+    }
+  };
+
+  const handleRedesignFromCurrent = () => runRedesign({ useCurrent: true });
+  const handleRedesignFromScratch = () => runRedesign({});
+
+  const handleUploadReference = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    await runRedesign({ file });
+  };
+
+  const triggerUpload = () => fileInputRef.current?.click();
 
   const handlePageChange = async (pageId) => {
     try {
@@ -184,6 +211,25 @@ export default function StoryReviewPage() {
               </div>
             )}
           </div>
+          {post.finalImage && (
+            <div className="image-source-info">
+              <div className="image-source-label">
+                <strong>Nguồn ảnh:</strong> {post.finalImage.license_type || 'Unknown'}
+                {post.finalImage.author && post.finalImage.author !== 'Unknown' && ` · ${post.finalImage.author}`}
+              </div>
+              {post.finalImage.source_url && (
+                <a href={post.finalImage.source_url} target="_blank" rel="noopener noreferrer" className="source-link">
+                  <ExternalLink size={12} />{' '}
+                  {post.finalImage.source_url.length > 60
+                    ? post.finalImage.source_url.substring(0, 60) + '...'
+                    : post.finalImage.source_url}
+                </a>
+              )}
+              {post.finalImage.attribution_text && (
+                <div className="image-attribution">{post.finalImage.attribution_text}</div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right: Details */}
@@ -234,9 +280,36 @@ export default function StoryReviewPage() {
           {/* Quick Actions */}
           <div className="detail-card">
             <h3>Hành động</h3>
-            <button className="btn-action-full" onClick={handleRegenerate} disabled={regenerating}>
+            <button className="btn-action-full" onClick={handleRegenerate} disabled={regenerating || redesigning}>
               <RefreshCw size={14} className={regenerating ? 'spin' : ''} />
               {regenerating ? 'Đang tạo lại...' : 'AI viết lại bài'}
+            </button>
+          </div>
+
+          {/* AI Redesign Image */}
+          <div className="detail-card">
+            <h3><Wand2 size={16} /> AI thiết kế lại ảnh</h3>
+            <p className="hint-text">gpt-image-2 sẽ tạo ảnh mới từ ảnh tham chiếu. Mất ~30-90s.</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              style={{ display: 'none' }}
+              onChange={handleUploadReference}
+            />
+            <button className="btn-action-full" onClick={triggerUpload} disabled={redesigning}>
+              <Upload size={14} className={redesigning ? 'spin' : ''} />
+              {redesigning ? 'Đang thiết kế...' : 'Upload ảnh tham chiếu'}
+            </button>
+            {post.finalImage && (
+              <button className="btn-action-full btn-secondary-action" onClick={handleRedesignFromCurrent} disabled={redesigning}>
+                <Wand2 size={14} className={redesigning ? 'spin' : ''} />
+                Thiết kế lại từ ảnh hiện tại
+              </button>
+            )}
+            <button className="btn-action-full btn-secondary-action" onClick={handleRedesignFromScratch} disabled={redesigning}>
+              <RefreshCw size={14} className={redesigning ? 'spin' : ''} />
+              Tạo ảnh từ đầu (không reference)
             </button>
           </div>
         </div>

@@ -1,14 +1,41 @@
 import { Router } from 'express';
 import path from 'path';
+import fs from 'fs';
+import multer from 'multer';
+import { v4 as uuidv4 } from 'uuid';
+import sharp from 'sharp';
 import { fileURLToPath } from 'url';
 import { GeneratedPost, GeneratedImage, TrueStory, ContentJob, MediaFile, FbPage, Post } from '../models/index.js';
 import { composeImage } from '../services/imageComposerService.js';
 import { writeArticle } from '../services/articleWriterService.js';
 import { publishToPage } from '../services/facebookService.js';
+import { designAndSaveImage } from '../services/aiImageDesignerService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const router = Router();
+
+// Multer cho upload reference image khi redesign
+const UPLOAD_BASE = path.join(__dirname, '..', '..', 'uploads', 'media');
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const now = new Date();
+      const dir = path.join(UPLOAD_BASE, String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, '0'));
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+      cb(null, `ref_${uuidv4()}${ext}`);
+    },
+  }),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/\.(jpe?g|png|webp|gif)$/i.test(file.originalname)) cb(null, true);
+    else cb(new Error('Chỉ chấp nhận file ảnh (jpg/png/webp/gif)'));
+  },
+});
 
 // List all generated posts (drafts)
 router.get('/', async (req, res) => {
@@ -236,6 +263,104 @@ router.post('/:id/recompose', async (req, res) => {
     res.json({ success: true, image: finalImage });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// AI Redesign — chạy lại gpt-image-2 với:
+//   - reference: upload mới (multipart 'image') / media_id có sẵn / hoặc finalImage hiện tại
+//   - không truyền gì → AI design from scratch
+// Sau khi designed xong, set thành final_image_id mới của draft.
+router.post('/:id/redesign', upload.single('image'), async (req, res) => {
+  try {
+    const genPost = await GeneratedPost.findByPk(req.params.id, {
+      include: [{ model: TrueStory, as: 'story' }, { model: MediaFile, as: 'finalImage' }],
+    });
+    if (!genPost) return res.status(404).json({ error: 'Post not found' });
+    if (!genPost.story) return res.status(400).json({ error: 'Post chưa có story' });
+
+    const basePath = path.join(__dirname, '..', '..');
+    let referencePath = null;
+    let referenceFolderId = null;
+    let referenceMediaId = null;
+
+    if (req.file) {
+      // Upload mới — lưu MediaFile cho reference này
+      const filePath = req.file.path;
+      let width = null, height = null;
+      try {
+        const meta = await sharp(filePath).metadata();
+        width = meta.width;
+        height = meta.height;
+      } catch { /* ignore */ }
+
+      const relativePath = '/' + path.relative(basePath, filePath).replace(/\\/g, '/');
+      const refMedia = await MediaFile.create({
+        folder_id: null,
+        story_id: genPost.story_id,
+        filename: req.file.filename,
+        original_name: req.file.originalname,
+        mime_type: req.file.mimetype || 'image/jpeg',
+        path: relativePath,
+        size: req.file.size,
+        width,
+        height,
+        license_type: 'User Upload',
+        author: 'User',
+        attribution_text: 'Uploaded by user as redesign reference',
+        uploaded_by: 'user',
+        tags: ['user-upload', 'reference'],
+      });
+
+      referencePath = filePath;
+      referenceFolderId = refMedia.folder_id;
+      referenceMediaId = refMedia.id;
+    } else if (req.body?.media_id) {
+      const refMedia = await MediaFile.findByPk(parseInt(req.body.media_id));
+      if (!refMedia) return res.status(404).json({ error: 'Reference media not found' });
+      referencePath = path.join(basePath, refMedia.path);
+      referenceFolderId = refMedia.folder_id;
+      referenceMediaId = refMedia.id;
+    } else if (req.body?.use_current === 'true' || req.body?.use_current === true) {
+      // Dùng lại finalImage hiện tại làm reference (regenerate variant)
+      if (genPost.finalImage) {
+        referencePath = path.join(basePath, genPost.finalImage.path);
+        referenceFolderId = genPost.finalImage.folder_id;
+        referenceMediaId = genPost.finalImage.id;
+      }
+    }
+    // Nếu không có reference nào → AI generate from scratch (referencePath=null)
+
+    const finalImage = await designAndSaveImage({
+      sourceImagePath: referencePath,
+      story: genPost.story,
+      headline: genPost.image_headline,
+      subheadline: genPost.image_subheadline,
+      storyId: genPost.story_id,
+      folderId: referenceFolderId,
+    });
+
+    await genPost.update({ final_image_id: finalImage.id });
+
+    if (referenceMediaId) {
+      await GeneratedImage.create({
+        story_id: genPost.story_id,
+        generated_post_id: genPost.id,
+        mode: 'ai_redesign',
+        source_media_id: referenceMediaId,
+        output_media_id: finalImage.id,
+        text_overlay: { headline: genPost.image_headline, subheadline: genPost.image_subheadline },
+        status: 'draft',
+      });
+    }
+
+    const updated = await GeneratedPost.findByPk(genPost.id, {
+      include: [{ model: MediaFile, as: 'finalImage' }],
+    });
+
+    res.json({ success: true, post: updated, image: finalImage });
+  } catch (err) {
+    console.error('[Redesign]', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

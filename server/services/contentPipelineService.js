@@ -3,9 +3,14 @@
  * Orchestrator điều phối toàn bộ pipeline: discover → search images → write → compose → draft
  */
 import { discoverStory } from './storyDiscoveryService.js';
-import { searchAndDownloadImages, generateAIImageForStory, searchRealImagesViaWeb } from './imageSearchService.js';
+import { searchAndDownloadImages, searchImagesViaDDG } from './imageSearchService.js';
 import { writeArticle } from './articleWriterService.js';
-import { composeImage } from './imageComposerService.js';
+import { designAndSaveImage } from './aiImageDesignerService.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = path.join(__dirname, '..', '..');
 import { ContentJob, GeneratedPost, GeneratedImage, MediaFile, FbPage } from '../models/index.js';
 import { getSetting } from './settingsService.js';
 
@@ -33,32 +38,24 @@ export async function runPipeline(topic = null, category = null, fbPageId = null
     await job.update({ story_id: story.id });
     console.log(`[Pipeline] Story found: "${story.title_vi || story.title}"`);
 
-    // Step 2: Search images — chuỗi fallback 3 cấp
-    //   2a. GPT-5 + web_search: tìm ảnh thật từ Wikipedia/Reuters/AP/...
-    //   2b. Wikimedia + Unsplash: search trực tiếp API
-    //   2c. AI image generation: cuối cùng nếu không có ảnh thật nào
+    // Step 2: Tìm ảnh tham chiếu (free) — DDG scrape, fallback Wikimedia/Unsplash.
+    // Nếu không tìm được, Step 4 vẫn chạy AI design from scratch (không reference).
     await updateJobStatus(job, 'searching_images', 2);
-    console.log(`[Pipeline] Job #${job.id} — Step 2: Searching images...`);
+    console.log(`[Pipeline] Job #${job.id} — Step 2: Searching reference images...`);
     const searchKeywords = extractSearchKeywords(story);
     let mediaFiles = [];
 
     try {
-      mediaFiles = await searchRealImagesViaWeb(story, 3);
+      mediaFiles = await searchImagesViaDDG(story, 3);
     } catch (err) {
-      console.error(`[Pipeline] Web search failed:`, err.message);
+      console.error(`[Pipeline] DDG search failed:`, err.message);
     }
 
     if (mediaFiles.length === 0) {
-      console.log(`[Pipeline] Web search empty — falling back to Wikimedia/Unsplash`);
+      console.log(`[Pipeline] DDG empty — falling back to Wikimedia/Unsplash`);
       mediaFiles = await searchAndDownloadImages(story, searchKeywords, 5);
     }
-    console.log(`[Pipeline] Real photos collected: ${mediaFiles.length}`);
-
-    if (mediaFiles.length === 0) {
-      console.log(`[Pipeline] No real photos found — falling back to AI image generation`);
-      const aiImage = await generateAIImageForStory(story);
-      if (aiImage) mediaFiles.push(aiImage);
-    }
+    console.log(`[Pipeline] Reference photos collected: ${mediaFiles.length}`);
 
     // Step 3: Write article
     await updateJobStatus(job, 'writing', 3);
@@ -66,28 +63,35 @@ export async function runPipeline(topic = null, category = null, fbPageId = null
     const article = await writeArticle(story);
     console.log(`[Pipeline] Article written. Headline: "${article.image_headline}"`);
 
-    // Step 4: Compose image
+    // Step 4: AI design — gpt-image-2 dùng reference photo (nếu có) làm visual base
+    //         và tự design typography + branding trong ảnh.
     await updateJobStatus(job, 'composing', 4);
-    console.log(`[Pipeline] Job #${job.id} — Step 4: Composing image...`);
+    console.log(`[Pipeline] Job #${job.id} — Step 4: AI designing image...`);
 
     let finalImage = null;
     let sourceMedia = null;
 
     if (mediaFiles.length > 0) {
-      // Pick the best image (largest resolution)
+      // Pick the best reference (largest resolution)
       sourceMedia = mediaFiles.reduce((best, f) =>
         (f.width && f.height && (f.width * f.height) > ((best.width || 0) * (best.height || 0))) ? f : best,
         mediaFiles[0]
       );
+    }
 
-      finalImage = await composeImage({
-        sourceImagePath: sourceMedia.path,
+    try {
+      finalImage = await designAndSaveImage({
+        sourceImagePath: sourceMedia ? path.join(PROJECT_ROOT, sourceMedia.path) : null,
+        story,
         headline: article.image_headline,
         subheadline: article.image_subheadline,
         storyId: story.id,
-        folderId: sourceMedia.folder_id,
+        folderId: sourceMedia?.folder_id || null,
       });
-      console.log(`[Pipeline] Image composed: ${finalImage.path}`);
+      console.log(`[Pipeline] Image designed: ${finalImage.path}`);
+    } catch (err) {
+      console.error(`[Pipeline] AI design failed:`, err.message);
+      // Không kill cả pipeline — vẫn tạo draft, user có thể redesign sau
     }
 
     // Step 5: Create draft

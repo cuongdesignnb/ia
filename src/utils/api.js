@@ -116,6 +116,21 @@ export const publishGeneratedPost = (id) => api.post(`/generated-posts/${id}/pub
 export const regeneratePost = (id) => api.post(`/generated-posts/${id}/regenerate`);
 export const recomposeImage = (id, media_id) => api.post(`/generated-posts/${id}/recompose`, { media_id });
 export const deleteGeneratedPost = (id) => api.delete(`/generated-posts/${id}`);
+// AI redesign — gpt-image-2 với reference (file upload / media_id / use_current / từ scratch)
+export const redesignGeneratedPost = (id, options = {}) => {
+  const { file, media_id, useCurrent } = options;
+  if (file) {
+    const fd = new FormData();
+    fd.append('image', file);
+    return api.post(`/generated-posts/${id}/redesign`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 300000,
+    });
+  }
+  return api.post(`/generated-posts/${id}/redesign`,
+    media_id ? { media_id } : useCurrent ? { use_current: true } : {},
+    { timeout: 300000 });
+};
 
 // Topic Suggestions (kho gợi ý chủ đề tích luỹ)
 export const getTopicSuggestions = (params) => api.get('/topic-suggestions', { params });

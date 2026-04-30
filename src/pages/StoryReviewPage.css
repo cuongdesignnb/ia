@@ -22,6 +22,17 @@
 .btn-delete-lg { background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); }
 .btn-delete-lg:hover { background: rgba(239,68,68,0.22); }
 
+/* Image source info */
+.image-source-info { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 12px 14px; margin-top: 12px; font-size: 12px; color: #888; }
+.image-source-label { color: #ccc; margin-bottom: 6px; }
+.image-source-label strong { color: #818cf8; font-weight: 600; }
+.image-attribution { font-style: italic; color: #666; margin-top: 4px; line-height: 1.4; }
+
+/* Redesign action card */
+.hint-text { font-size: 12px; color: #888; margin: -4px 0 10px; line-height: 1.5; }
+.btn-secondary-action { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #ccc; margin-top: 8px; }
+.btn-secondary-action:hover:not(:disabled) { background: rgba(255,255,255,0.08); }
+
 /* Layout */
 .review-layout { display: grid; grid-template-columns: 1fr 380px; gap: 24px; }
 

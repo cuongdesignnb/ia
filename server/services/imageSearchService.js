@@ -258,8 +258,112 @@ async function downloadAndSaveImage(imageInfo, folderId, storyId) {
 }
 
 /**
+ * Tìm URL ảnh qua DuckDuckGo Images (scrape, không cần API key).
+ * Pattern: lấy vqd token từ HTML → gọi i.js trả JSON.
+ * @param {string} query
+ * @param {number} maxResults
+ * @returns {Array<{url, source_url, source, title}>}
+ */
+async function searchDuckDuckGoImages(query, maxResults = 5) {
+  try {
+    const initResp = await axios.get('https://duckduckgo.com/', {
+      params: { q: query, iax: 'images', ia: 'images' },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+      },
+      timeout: 15000,
+    });
+
+    const vqdMatch = initResp.data.match(/vqd=['"]?(\d+-\d+(?:-\d+)?)['"]?/);
+    if (!vqdMatch) {
+      console.warn('[DDG] No vqd token in response');
+      return [];
+    }
+    const vqd = vqdMatch[1];
+
+    const searchResp = await axios.get('https://duckduckgo.com/i.js', {
+      params: {
+        l: 'us-en',
+        o: 'json',
+        q: query,
+        vqd,
+        f: ',,,size:Large',
+        p: '1',
+        v7exp: 'a',
+      },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+        'Referer': 'https://duckduckgo.com/',
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+      },
+      timeout: 20000,
+    });
+
+    const results = searchResp.data?.results || [];
+    return results.slice(0, maxResults).map(r => ({
+      url: r.image,
+      source_url: r.url || r.image,
+      source: r.source || extractDomain(r.url),
+      title: r.title || '',
+    }));
+  } catch (err) {
+    console.error('[DDG] Search failed:', err.message);
+    return [];
+  }
+}
+
+function extractDomain(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return 'web'; }
+}
+
+/**
+ * Tìm ảnh thật qua DuckDuckGo (free, không tốn API).
+ * @param {Object} story
+ * @param {number} maxImages
+ * @returns {Array<MediaFile>}
+ */
+export async function searchImagesViaDDG(story, maxImages = 3) {
+  const folder = await getOrCreateStoryFolder(story);
+
+  // Build search query: title + event_date year + location
+  const queryParts = [story.title || story.title_vi];
+  if (story.event_date) {
+    const year = String(story.event_date).slice(0, 4);
+    if (/^\d{4}$/.test(year)) queryParts.push(year);
+  }
+  if (story.location) queryParts.push(story.location);
+  const query = queryParts.filter(Boolean).join(' ');
+
+  console.log(`[DDG] Searching: "${query}"`);
+  const candidates = await searchDuckDuckGoImages(query, 8);
+  console.log(`[DDG] Found ${candidates.length} candidate URLs`);
+
+  const results = [];
+  for (const c of candidates) {
+    if (results.length >= maxImages) break;
+    if (!c.url) continue;
+    try {
+      const ext = (c.url.match(/\.(jpg|jpeg|png|webp)(?:\?|$)/i)?.[1] || 'jpg').toLowerCase();
+      const mediaFile = await downloadAndSaveImage({
+        url: c.url,
+        source_url: c.source_url,
+        license_type: c.source || 'Web (DuckDuckGo)',
+        author: c.source || 'Unknown',
+        attribution_text: `${c.title || ''} — ${c.source || 'web'} (via DuckDuckGo)`.trim(),
+        original_name: `ddg_${uuidv4()}.${ext}`,
+      }, folder.id, story.id);
+      if (mediaFile) results.push(mediaFile);
+    } catch (err) {
+      console.warn(`[DDG] Skip ${c.url}: ${err.message}`);
+    }
+  }
+  console.log(`[DDG] ✅ Downloaded ${results.length}/${candidates.length}`);
+  return results;
+}
+
+/**
  * Tìm ảnh thật qua GPT-5 + web_search tool (OpenAI Responses API).
- * Mô phỏng ChatGPT app: model lên web tìm URL ảnh thật từ Wikipedia/Reuters/AP/BBC...
+ * @deprecated Replaced by searchImagesViaDDG (free). Giữ lại nếu user muốn switch.
  * @param {Object} story - TrueStory record
  * @param {number} maxImages
  * @returns {Array<MediaFile>}
