@@ -21,41 +21,72 @@ const UPLOAD_BASE = path.join(__dirname, '..', '..', 'uploads', 'media');
 
 /**
  * Build the design prompt for gpt-image-2.
+ * Khi có visualBase (mô tả ảnh tham chiếu từ vision) → đặt làm content chính,
+ * design rules chỉ là overlay rules, không được thay đổi visual chính.
  */
-function buildDesignPrompt({ story, headline, subheadline, labelText, labelColor, hasReference }) {
+function buildDesignPrompt({ story, headline, subheadline, labelText, labelColor, visualBase }) {
   const eventContext = [
-    story.event_date && `Date: ${story.event_date}`,
-    story.location && `Location: ${story.location}`,
-  ].filter(Boolean).join(', ');
+    story.event_date && story.event_date,
+    story.location,
+  ].filter(Boolean).join(' · ');
 
-  const referenceClause = hasReference
-    ? `IMPORTANT: Use the provided reference photo as the main visual subject. Preserve the people, setting, and key elements of that photo. Apply cinematic photographic treatment (dramatic lighting, depth, color grading) but keep it photojournalistic and realistic.`
-    : `Generate a cinematic photojournalistic image about: ${story.title}. ${story.summary || ''} Realistic, dramatic lighting, documentary photography style.`;
+  // Visual content — ưu tiên mô tả từ ảnh tham chiếu, fallback về story
+  const mainVisual = visualBase
+    ? `## MAIN VISUAL CONTENT (this is the PRIMARY image — reproduce faithfully):
 
-  return `Create a 1:1 square Facebook post image (1024x1024) — magazine-cover style storytelling design.
+${visualBase}
 
-${referenceClause}
+CRITICAL FAITHFULNESS RULES:
+- Reproduce the scene above EXACTLY: same subject(s), same pose, same setting, same composition, same lighting, same atmosphere.
+- Do NOT add extra people, objects, or scenery not described.
+- Do NOT change the subject's appearance, ethnicity, age, or clothing.
+- Do NOT shift to a different location or time period.
+- Treat this as a strict photo recreation, not creative interpretation.
+- Keep it photorealistic — like a real documentary/news photograph, not stylized art.`
+    : `## MAIN VISUAL CONTENT
 
-TYPOGRAPHY (write these texts EXACTLY as given, with all Vietnamese diacritics correct):
-1. Top center — small rectangular badge with solid color "${labelColor}", white bold uppercase text inside:
+A cinematic photojournalistic photograph documenting: ${story.title}.
+${story.summary ? `Context: ${story.summary}` : ''}
+Realistic, dramatic natural lighting, documentary photography style. Looks like a real news photo, not illustration.`;
+
+  return `Design a 1024×1024 square Facebook post image. Two-layer composition: (A) the main photograph below, (B) text overlay on top.
+
+${mainVisual}
+
+## TEXT OVERLAY (rendered ON TOP of the main visual — do not replace or alter the visual)
+
+Reserve appropriate space for text without obscuring key subjects (typically: small badge top-center, headline middle/upper area over subtle gradient, subheadline at bottom over darker gradient).
+
+1. TOP CENTER BADGE — small rectangular tag, solid background color ${labelColor}, white bold uppercase text inside:
    "${labelText}"
-2. Center to upper-middle — large bold white uppercase headline with subtle drop shadow:
+
+2. HEADLINE — large bold white uppercase, with subtle dark drop-shadow for legibility:
    "${headline}"
-3. Bottom — smaller bold white uppercase subheadline:
+
+3. SUBHEADLINE — smaller bold white uppercase, below headline:
    "${subheadline}"
 
-CRITICAL: Vietnamese text MUST be spelled exactly as provided, including all diacritical marks (à á ả ã ạ â ấ ầ ẩ ẫ ậ ă ắ ằ ẳ ẵ ặ è é ẻ ẽ ẹ ê ế ề ể ễ ệ ì í ỉ ĩ ị ò ó ỏ õ ọ ô ố ồ ổ ỗ ộ ơ ớ ờ ở ỡ ợ ù ú ủ ũ ụ ư ứ ừ ử ữ ự ỳ ý ỷ ỹ ỵ đ Đ).
+## VIETNAMESE TEXT FIDELITY (CRITICAL)
+All text above is in Vietnamese and MUST be reproduced EXACTLY, including every diacritical mark:
+à á ả ã ạ â ấ ầ ẩ ẫ ậ ă ắ ằ ẳ ẵ ặ
+è é ẻ ẽ ẹ ê ế ề ể ễ ệ
+ì í ỉ ĩ ị
+ò ó ỏ õ ọ ô ố ồ ổ ỗ ộ ơ ớ ờ ở ỡ ợ
+ù ú ủ ũ ụ ư ứ ừ ử ữ ự
+ỳ ý ỷ ỹ ỵ
+đ Đ
+No misspellings, no missing tones, no English substitutions.
 
-DESIGN STYLE:
-- Bold editorial / news magazine cover aesthetic
-- Strong contrast, high impact
-- Subtle gradient at the bottom for text readability
-- Clean sans-serif fonts, no decorative effects
-- Photojournalistic mood, no cartoon / illustration / 3D
+## TYPOGRAPHY STYLE
+Clean modern sans-serif (e.g., Inter / Helvetica / Open Sans family). Strong weight (700-900). No decorative or script fonts. Tight letter spacing on headline.
 
-${eventContext ? `Event context: ${eventContext}` : ''}
-
-Output: 1024x1024 photographic image with all the text above clearly legible and correctly spelled in Vietnamese.`;
+## OVERALL OUTPUT
+- Format: 1024×1024 square
+- Style: photographic realism with editorial text overlay (think National Geographic / TIME magazine cover)
+- The PHOTO is the hero — text supports, never dominates
+- No watermarks, no AI artifacts, no extra logos
+- No cartoon/illustration/3D-render — strictly photographic look
+${eventContext ? `\n## EVENT CONTEXT (for accuracy)\n${eventContext}` : ''}`;
 }
 
 /**
@@ -82,24 +113,18 @@ export async function designAndSaveImage({
   const finalColor = labelColor || await getSetting('image_label_color') || '#ff0000';
 
   const hasReference = !!sourceImagePath && fs.existsSync(sourceImagePath);
-  const prompt = buildDesignPrompt({
-    story, headline, subheadline, labelText: finalLabel, labelColor: finalColor, hasReference,
-  });
-
   const client = new OpenAI({ apiKey, timeout: 300000 });
   const modelName = await getSetting('ai_design_model') || 'gpt-image-2';
 
   console.log(`[AIDesigner] Model: ${modelName}, Reference: ${hasReference ? sourceImagePath : 'none'}`);
 
-  // Đồng nhất với flow tạo bài bình thường (CreatePost): luôn dùng images.generate
-  // với gpt-image-2. Khi có ảnh tham chiếu → gpt-4o-mini vision describe ảnh đó
-  // → đưa mô tả vào prompt để gpt-image-2 tái tạo ảnh tương tự.
-  let response;
+  // Đồng nhất với flow tạo bài (CreatePost): images.generate gpt-image-2.
+  // Có reference → gpt-4o-mini vision tạo ra "image generation prompt"
+  //   chi tiết, đặt làm visual content chính trong design prompt.
   let designMethod = `generate-${modelName}`;
+  let visualBase = '';
 
-  let finalPrompt = prompt;
   if (hasReference) {
-    let visionDescription = '';
     try {
       const imageBase64 = fs.readFileSync(sourceImagePath).toString('base64');
       const ext = path.extname(sourceImagePath).slice(1).toLowerCase() || 'jpeg';
@@ -109,23 +134,34 @@ export async function designAndSaveImage({
         messages: [{
           role: 'user',
           content: [
-            { type: 'text', text: 'Describe this photograph for use as a visual reference for AI image generation. Cover: main subject(s) and pose, setting/background, lighting and mood, color palette, photographic style, key visual elements. Be specific and concrete. 80-150 words. English only.' },
+            { type: 'text', text: `Convert this photograph into a detailed image-generation prompt that will let another AI recreate it faithfully. Format: a single dense paragraph starting with "A photograph of...". Cover ALL of these in concrete specifics:
+
+- SUBJECT(s): who/what, exact pose, expression, age/gender appearance, clothing details, what they're holding/doing
+- SETTING: location type, surroundings, foreground, background, time of day, weather/atmosphere
+- COMPOSITION: shot framing (close-up / medium / wide), camera angle (eye-level / low / high), depth (shallow DOF / deep focus)
+- LIGHTING: direction (front / side / back / overhead), quality (hard / soft / dappled), color temperature, key shadows
+- COLOR PALETTE: dominant 3-4 colors, mood (warm / cool / neutral / desaturated)
+- STYLE: photographic genre (documentary / news / portrait / landscape / archival), era cues if visible (lens characteristics, film vs digital look)
+
+Be SPECIFIC and CONCRETE — name actual visible details. Do NOT mention what's absent. Do NOT use vague words like "various" or "some". 120-200 words. English only. No bullet lists, write as flowing text.` },
             { type: 'image_url', image_url: { url: `data:image/${mime};base64,${imageBase64}` } },
           ],
         }],
-        max_tokens: 300,
+        max_tokens: 500,
       });
-      visionDescription = visionResp.choices[0]?.message?.content || '';
-      console.log(`[AIDesigner] Vision description: ${visionDescription.slice(0, 120)}...`);
+      visualBase = visionResp.choices[0]?.message?.content?.trim() || '';
+      console.log(`[AIDesigner] Vision prompt (${visualBase.length} chars): ${visualBase.slice(0, 160)}...`);
     } catch (visionErr) {
       console.warn(`[AIDesigner] Vision describe failed: ${visionErr.message}`);
     }
-
-    if (visionDescription) {
-      finalPrompt = `${prompt}\n\nREFERENCE PHOTO DESCRIPTION (recreate a photographic image that closely matches this real reference):\n${visionDescription}\n\nIMPORTANT: Reproduce the same subject, composition, lighting, and mood as described above. Make it photorealistic, like a real news photograph.`;
-      designMethod = `vision-guided-${modelName}`;
-    }
+    if (visualBase) designMethod = `vision-guided-${modelName}`;
   }
+
+  const finalPrompt = buildDesignPrompt({
+    story, headline, subheadline,
+    labelText: finalLabel, labelColor: finalColor,
+    visualBase,
+  });
 
   const params = {
     model: modelName,
@@ -135,6 +171,7 @@ export async function designAndSaveImage({
   };
   if (modelName.startsWith('gpt-image')) params.quality = 'high';
 
+  let response;
   try {
     response = await client.images.generate(params);
     console.log(`[AIDesigner] ✅ ${designMethod} OK`);
