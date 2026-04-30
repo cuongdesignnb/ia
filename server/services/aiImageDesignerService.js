@@ -95,25 +95,25 @@ export async function designAndSaveImage({
   let response;
   try {
     if (hasReference) {
-      // images.edit với reference image
+      // images.edit với reference image — KHÔNG có param 'quality' (chỉ generate mới hỗ trợ)
       const imageFile = await toFile(fs.createReadStream(sourceImagePath), path.basename(sourceImagePath));
       response = await client.images.edit({
         model: modelName,
         image: imageFile,
         prompt,
         size: '1024x1024',
-        quality: 'high',
         n: 1,
       });
     } else {
-      // images.generate from scratch
-      response = await client.images.generate({
+      // images.generate from scratch — gpt-image-2 hỗ trợ quality
+      const params = {
         model: modelName,
         prompt,
         size: '1024x1024',
-        quality: 'high',
         n: 1,
-      });
+      };
+      if (modelName.startsWith('gpt-image')) params.quality = 'high';
+      response = await client.images.generate(params);
     }
   } catch (err) {
     console.error(`[AIDesigner] ${modelName} failed:`, err.message);
