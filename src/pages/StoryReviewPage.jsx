@@ -302,10 +302,13 @@ export default function StoryReviewPage() {
             </button>
           </div>
 
-          {/* AI Redesign Image */}
+          {/* Redesign Image */}
           <div className="detail-card">
-            <h3><Wand2 size={16} /> AI thiết kế lại ảnh</h3>
-            <p className="hint-text">gpt-image-2 sẽ tạo ảnh mới từ ảnh tham chiếu. Mất ~30-90s.</p>
+            <h3><Wand2 size={16} /> Thiết kế lại ảnh</h3>
+            <p className="hint-text">
+              <strong>Upload ảnh thật:</strong> giữ NGUYÊN 100% ảnh, chỉ đè text + badge lên (Sharp, &lt; 1s).<br/>
+              <strong>Tạo ảnh AI:</strong> gpt-image-2 sinh ảnh mới từ chủ đề (~30-90s, ~$0.04).
+            </p>
             <input
               ref={fileInputRef}
               type="file"
@@ -315,17 +318,17 @@ export default function StoryReviewPage() {
             />
             <button className="btn-action-full" onClick={triggerUpload} disabled={redesigning}>
               <Upload size={14} className={redesigning ? 'spin' : ''} />
-              {redesigning ? 'Đang thiết kế...' : 'Upload ảnh tham chiếu'}
+              {redesigning ? 'Đang xử lý...' : 'Upload ảnh thật → giữ nguyên + đè text'}
             </button>
             {post.finalImage && (
               <button className="btn-action-full btn-secondary-action" onClick={handleRedesignFromCurrent} disabled={redesigning}>
                 <Wand2 size={14} className={redesigning ? 'spin' : ''} />
-                Thiết kế lại từ ảnh hiện tại
+                Đè lại text lên ảnh hiện tại
               </button>
             )}
             <button className="btn-action-full btn-secondary-action" onClick={handleRedesignFromScratch} disabled={redesigning}>
               <RefreshCw size={14} className={redesigning ? 'spin' : ''} />
-              Tạo ảnh từ đầu (không reference)
+              AI tạo ảnh mới (không reference)
             </button>
           </div>
         </div>

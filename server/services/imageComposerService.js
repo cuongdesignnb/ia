@@ -140,58 +140,100 @@ function buildSVGOverlay({ width, height, headline, subheadline, labelText, labe
   // Escape XML special chars
   const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-  // Word wrap for headline (split into lines if too long)
-  const headlineLines = wordWrap(headline || '', 20);
-  const subheadlineLines = wordWrap(subheadline || '', 30);
+  // Tự động giảm font-size nếu headline quá dài (tránh tràn nhiều dòng)
+  const headlineText = (headline || '').toUpperCase();
+  const headlineLines = wordWrap(headlineText, 18);
+  const headlineFontSize = headlineLines.length >= 4 ? 56
+    : headlineLines.length === 3 ? 68
+    : headlineLines.length === 2 ? 80 : 92;
+  const headlineLineHeight = Math.round(headlineFontSize * 1.1);
 
-  // Calculate text positions
-  const labelY = height - 280;
-  const headlineStartY = height - 230;
-  const subStartY = headlineStartY + headlineLines.length * 58 + 15;
+  const subheadlineText = (subheadline || '').toUpperCase();
+  const subheadlineLines = wordWrap(subheadlineText, 36);
+  const subFontSize = subheadlineLines.length >= 3 ? 24
+    : subheadlineLines.length === 2 ? 28 : 32;
+  const subLineHeight = Math.round(subFontSize * 1.25);
+
+  // Layout từ dưới lên
+  const bottomPadding = 80;
+  const subBlockHeight = subheadlineLines.length * subLineHeight;
+  const subBaseline = height - bottomPadding - (subBlockHeight - subLineHeight);
+
+  const headlineSubGap = 30;
+  const headlineBlockHeight = headlineLines.length * headlineLineHeight;
+  const headlineBaseline = subBaseline - subBlockHeight + subLineHeight - headlineSubGap - headlineBlockHeight + headlineLineHeight;
+
+  // Label badge ở phía trên headline
+  const labelHeight = 44;
+  const labelGap = 28;
+  const labelY = headlineBaseline - headlineLineHeight - labelGap - labelHeight / 2;
+  const labelTextWidth = Math.max(esc(labelText).length * 14 + 60, 220);
 
   let headlineSVG = '';
   headlineLines.forEach((line, i) => {
-    headlineSVG += `<text x="${width / 2}" y="${headlineStartY + i * 58}" text-anchor="middle"
-      font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="50" fill="white"
-      stroke="black" stroke-width="1.5"
+    const y = headlineBaseline + i * headlineLineHeight;
+    headlineSVG += `<text x="${width / 2}" y="${y}" text-anchor="middle"
+      font-family="'Inter','Helvetica Neue','Arial',sans-serif" font-weight="900" font-size="${headlineFontSize}"
+      fill="white" letter-spacing="-1"
       filter="url(#shadow)">${esc(line)}</text>`;
   });
 
   let subSVG = '';
   subheadlineLines.forEach((line, i) => {
-    subSVG += `<text x="${width / 2}" y="${subStartY + i * 36}" text-anchor="middle"
-      font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="28" fill="#f0f0f0"
-      filter="url(#shadow)">${esc(line)}</text>`;
+    const y = subBaseline + i * subLineHeight;
+    subSVG += `<text x="${width / 2}" y="${y}" text-anchor="middle"
+      font-family="'Inter','Helvetica Neue','Arial',sans-serif" font-weight="700" font-size="${subFontSize}"
+      fill="#ffffff" letter-spacing="1"
+      filter="url(#softShadow)">${esc(line)}</text>`;
   });
 
   return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="rgba(0,0,0,0)" />
-      <stop offset="50%" stop-color="rgba(0,0,0,0)" />
-      <stop offset="75%" stop-color="rgba(0,0,0,0.5)" />
-      <stop offset="100%" stop-color="rgba(0,0,0,0.85)" />
+      <stop offset="40%" stop-color="rgba(0,0,0,0)" />
+      <stop offset="65%" stop-color="rgba(0,0,0,0.55)" />
+      <stop offset="100%" stop-color="rgba(0,0,0,0.92)" />
     </linearGradient>
-    <filter id="shadow">
-      <feDropShadow dx="1" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.7)" />
+    <linearGradient id="topGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(0,0,0,0.45)" />
+      <stop offset="100%" stop-color="rgba(0,0,0,0)" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="rgba(0,0,0,0.85)" />
+    </filter>
+    <filter id="softShadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.7)" />
+    </filter>
+    <filter id="badgeShadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(0,0,0,0.5)" />
     </filter>
   </defs>
 
-  <!-- Gradient overlay -->
+  <!-- Top vignette để label nổi -->
+  <rect x="0" y="0" width="${width}" height="${Math.round(height * 0.25)}" fill="url(#topGrad)" />
+
+  <!-- Bottom gradient cho text -->
   <rect width="${width}" height="${height}" fill="url(#grad)" />
 
-  <!-- Label badge -->
-  <rect x="${width / 2 - 140}" y="${labelY - 22}" width="280" height="30" rx="4"
-    fill="${esc(labelColor)}" opacity="0.9" />
-  <text x="${width / 2}" y="${labelY}" text-anchor="middle"
-    font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="16"
-    fill="white" letter-spacing="2">${esc(labelText)}</text>
+  <!-- Label badge — pill shape with shadow -->
+  <g filter="url(#badgeShadow)">
+    <rect x="${width / 2 - labelTextWidth / 2}" y="${labelY - labelHeight / 2}" width="${labelTextWidth}" height="${labelHeight}" rx="6"
+      fill="${esc(labelColor)}" />
+    <text x="${width / 2}" y="${labelY + 7}" text-anchor="middle"
+      font-family="'Inter','Helvetica Neue','Arial',sans-serif" font-weight="800" font-size="20"
+      fill="white" letter-spacing="3">${esc(labelText)}</text>
+  </g>
 
   <!-- Headline -->
   ${headlineSVG}
 
   <!-- Subheadline -->
   ${subSVG}
+
+  <!-- Accent line dưới subheadline -->
+  <line x1="${width / 2 - 40}" y1="${subBaseline + subBlockHeight + 8}" x2="${width / 2 + 40}" y2="${subBaseline + subBlockHeight + 8}"
+    stroke="${esc(labelColor)}" stroke-width="3" />
 </svg>`;
 }
 

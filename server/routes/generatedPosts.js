@@ -10,6 +10,8 @@ import { composeImage } from '../services/imageComposerService.js';
 import { writeArticle } from '../services/articleWriterService.js';
 import { publishToPage } from '../services/facebookService.js';
 import { designAndSaveImage } from '../services/aiImageDesignerService.js';
+// composeImage = Sharp + SVG (giữ nguyên ảnh thật, đè text overlay)
+// designAndSaveImage = AI gen (gpt-image-2 from scratch)
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -267,10 +269,12 @@ router.post('/:id/recompose', async (req, res) => {
   }
 });
 
-// AI Redesign — chạy lại gpt-image-2 với:
-//   - reference: upload mới (multipart 'image') / media_id có sẵn / hoặc finalImage hiện tại
-//   - không truyền gì → AI design from scratch
-// Sau khi designed xong, set thành final_image_id mới của draft.
+// Redesign — 2 mode:
+//   - Có reference (upload mới / media_id / use_current) → Sharp+SVG
+//     overlay (giữ NGUYÊN 100% ảnh tham chiếu, đè text)
+//   - Không reference → AI generate from scratch (gpt-image-2)
+// Body có thể có ?force_ai=true để ép dùng AI gen ngay cả khi có
+// reference (cho user muốn redesign artistic).
 router.post('/:id/redesign', upload.single('image'), async (req, res) => {
   try {
     const genPost = await GeneratedPost.findByPk(req.params.id, {
@@ -280,7 +284,8 @@ router.post('/:id/redesign', upload.single('image'), async (req, res) => {
     if (!genPost.story) return res.status(400).json({ error: 'Post chưa có story' });
 
     const basePath = path.join(__dirname, '..', '..');
-    let referencePath = null;
+    let referenceRelativePath = null; // relative path cho composeImage
+    let referenceAbsolutePath = null; // absolute cho designAndSaveImage
     let referenceFolderId = null;
     let referenceMediaId = null;
 
@@ -312,33 +317,49 @@ router.post('/:id/redesign', upload.single('image'), async (req, res) => {
         tags: ['user-upload', 'reference'],
       });
 
-      referencePath = filePath;
+      referenceRelativePath = relativePath;
+      referenceAbsolutePath = filePath;
       referenceFolderId = refMedia.folder_id;
       referenceMediaId = refMedia.id;
     } else if (req.body?.media_id) {
       const refMedia = await MediaFile.findByPk(parseInt(req.body.media_id));
       if (!refMedia) return res.status(404).json({ error: 'Reference media not found' });
-      referencePath = path.join(basePath, refMedia.path);
+      referenceRelativePath = refMedia.path;
+      referenceAbsolutePath = path.join(basePath, refMedia.path);
       referenceFolderId = refMedia.folder_id;
       referenceMediaId = refMedia.id;
     } else if (req.body?.use_current === 'true' || req.body?.use_current === true) {
-      // Dùng lại finalImage hiện tại làm reference (regenerate variant)
       if (genPost.finalImage) {
-        referencePath = path.join(basePath, genPost.finalImage.path);
+        referenceRelativePath = genPost.finalImage.path;
+        referenceAbsolutePath = path.join(basePath, genPost.finalImage.path);
         referenceFolderId = genPost.finalImage.folder_id;
         referenceMediaId = genPost.finalImage.id;
       }
     }
-    // Nếu không có reference nào → AI generate from scratch (referencePath=null)
 
-    const finalImage = await designAndSaveImage({
-      sourceImagePath: referencePath,
-      story: genPost.story,
-      headline: genPost.image_headline,
-      subheadline: genPost.image_subheadline,
-      storyId: genPost.story_id,
-      folderId: referenceFolderId,
-    });
+    const forceAI = req.body?.force_ai === 'true' || req.body?.force_ai === true;
+    let finalImage;
+
+    if (referenceRelativePath && !forceAI) {
+      // Sharp + SVG — giữ nguyên ảnh tham chiếu, đè text/badge lên
+      finalImage = await composeImage({
+        sourceImagePath: referenceRelativePath,
+        headline: genPost.image_headline,
+        subheadline: genPost.image_subheadline,
+        storyId: genPost.story_id,
+        folderId: referenceFolderId,
+      });
+    } else {
+      // AI generate from scratch (hoặc force_ai)
+      finalImage = await designAndSaveImage({
+        sourceImagePath: forceAI ? referenceAbsolutePath : null,
+        story: genPost.story,
+        headline: genPost.image_headline,
+        subheadline: genPost.image_subheadline,
+        storyId: genPost.story_id,
+        folderId: referenceFolderId,
+      });
+    }
 
     await genPost.update({ final_image_id: finalImage.id });
 
