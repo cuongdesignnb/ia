@@ -50,6 +50,11 @@ const TrueStory = sequelize.define('TrueStory', {
     allowNull: true,
     comment: 'survival, science, history, nature, humanity...',
   },
+  search_keywords: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: 'AI-generated English keywords cho image search (vd: "aurora borealis low latitude")',
+  },
   status: {
     type: DataTypes.ENUM('draft', 'verified', 'rejected'),
     defaultValue: 'draft',

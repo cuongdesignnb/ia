@@ -325,18 +325,27 @@ function extractDomain(url) {
 export async function searchImagesViaDDG(story, maxImages = 3) {
   const folder = await getOrCreateStoryFolder(story);
 
-  // Build search query: title + event_date year + location
-  const queryParts = [story.title || story.title_vi];
-  if (story.event_date) {
-    const year = String(story.event_date).slice(0, 4);
-    if (/^\d{4}$/.test(year)) queryParts.push(year);
+  // Build search query — ưu tiên AI-generated keywords (đã optimized)
+  // Nếu không có thì dùng title + year + location
+  let query;
+  if (story.search_keywords) {
+    query = story.search_keywords;
+  } else {
+    const queryParts = [story.title || story.title_vi];
+    if (story.event_date) {
+      const year = String(story.event_date).slice(0, 4);
+      if (/^\d{4}$/.test(year)) queryParts.push(year);
+    }
+    if (story.location) queryParts.push(story.location);
+    query = queryParts.filter(Boolean).join(' ');
   }
-  if (story.location) queryParts.push(story.location);
-  const query = queryParts.filter(Boolean).join(' ');
 
   console.log(`[DDG] Searching: "${query}"`);
   const candidates = await searchDuckDuckGoImages(query, 8);
-  console.log(`[DDG] Found ${candidates.length} candidate URLs`);
+  console.log(`[DDG] Got ${candidates.length} candidates from API`);
+  if (candidates.length > 0) {
+    console.log(`[DDG] First 3 URLs:`, candidates.slice(0, 3).map(c => c.url).join(', '));
+  }
 
   const results = [];
   for (const c of candidates) {

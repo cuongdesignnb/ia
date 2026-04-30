@@ -168,8 +168,9 @@ export async function runPipeline(topic = null, category = null, fbPageId = null
 }
 
 function extractSearchKeywords(story) {
-  // Use title (English) for better image search results
-  return story.title || story.title_vi || '';
+  // Ưu tiên AI-generated keywords (English, tối ưu cho image search)
+  // Fallback: English title → Vietnamese title
+  return story.search_keywords || story.title || story.title_vi || '';
 }
 
 async function updateJobStatus(job, status, step) {

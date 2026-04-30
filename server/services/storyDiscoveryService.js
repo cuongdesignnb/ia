@@ -46,6 +46,7 @@ export async function discoverStory(topic = null, category = null) {
     verified_facts: storyData.verified_facts || [],
     source_urls: storyData.source_urls || [],
     category: storyData.category || categories[0],
+    search_keywords: storyData.search_keywords_en || null,
     status: 'verified',
   });
 

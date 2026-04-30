@@ -211,25 +211,41 @@ export default function StoryReviewPage() {
               </div>
             )}
           </div>
-          {post.finalImage && (
-            <div className="image-source-info">
-              <div className="image-source-label">
-                <strong>Nguồn ảnh:</strong> {post.finalImage.license_type || 'Unknown'}
-                {post.finalImage.author && post.finalImage.author !== 'Unknown' && ` · ${post.finalImage.author}`}
+          {post.finalImage && (() => {
+            const isAIOnly = (post.finalImage.license_type || '').startsWith('AI Designed') &&
+                             !(post.finalImage.attribution_text || '').includes('from reference');
+            const isAIWithRef = (post.finalImage.license_type || '').startsWith('AI Designed') &&
+                                (post.finalImage.attribution_text || '').includes('from reference');
+            return (
+              <div className={`image-source-info ${isAIOnly ? 'is-ai-only' : ''}`}>
+                {isAIOnly && (
+                  <div className="image-warning-badge">
+                    ⚠️ Ảnh AI tạo từ scratch — không có ảnh thật tham chiếu. Cân nhắc upload ảnh thật để AI thiết kế lại.
+                  </div>
+                )}
+                {isAIWithRef && (
+                  <div className="image-info-badge">
+                    ✨ AI thiết kế từ ảnh tham chiếu thật
+                  </div>
+                )}
+                <div className="image-source-label">
+                  <strong>Nguồn ảnh:</strong> {post.finalImage.license_type || 'Unknown'}
+                  {post.finalImage.author && post.finalImage.author !== 'Unknown' && ` · ${post.finalImage.author}`}
+                </div>
+                {post.finalImage.source_url && (
+                  <a href={post.finalImage.source_url} target="_blank" rel="noopener noreferrer" className="source-link">
+                    <ExternalLink size={12} />{' '}
+                    {post.finalImage.source_url.length > 60
+                      ? post.finalImage.source_url.substring(0, 60) + '...'
+                      : post.finalImage.source_url}
+                  </a>
+                )}
+                {post.finalImage.attribution_text && (
+                  <div className="image-attribution">{post.finalImage.attribution_text}</div>
+                )}
               </div>
-              {post.finalImage.source_url && (
-                <a href={post.finalImage.source_url} target="_blank" rel="noopener noreferrer" className="source-link">
-                  <ExternalLink size={12} />{' '}
-                  {post.finalImage.source_url.length > 60
-                    ? post.finalImage.source_url.substring(0, 60) + '...'
-                    : post.finalImage.source_url}
-                </a>
-              )}
-              {post.finalImage.attribution_text && (
-                <div className="image-attribution">{post.finalImage.attribution_text}</div>
-              )}
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Right: Details */}
