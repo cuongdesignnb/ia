@@ -121,19 +121,33 @@ TRẢ VỀ JSON (chỉ JSON, không markdown):
 }
 
 function parseArticleResponse(text) {
+  if (!text) return null;
   try {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
+    // Strip markdown fences nếu AI trả ```json ... ```
+    let cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+
+    // Match JSON object — try greedy first, fallback non-greedy
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('[ArticleWriter] No JSON found in response. First 200 chars:', text.slice(0, 200));
+      return null;
+    }
+
     const data = JSON.parse(jsonMatch[0]);
 
-    if (!data.post_body || !data.image_headline) return null;
+    if (!data.post_body || !data.image_headline) {
+      console.error('[ArticleWriter] Missing required fields. Got keys:', Object.keys(data));
+      return null;
+    }
 
-    // Clean: remove any emojis that AI might sneak in
+    // Clean: remove emojis AI có thể sneak in
     data.post_body = removeEmojis(data.post_body);
     data.hook = removeEmojis(data.hook || '');
 
     return data;
-  } catch {
+  } catch (err) {
+    console.error('[ArticleWriter] JSON parse failed:', err.message);
+    console.error('[ArticleWriter] First 300 chars of response:', text.slice(0, 300));
     return null;
   }
 }
@@ -158,29 +172,60 @@ function removeEmojis(text) {
     .trim();
 }
 
+// OpenAI text fallback chain — flagship → mini → legacy
+const OPENAI_TEXT_FALLBACKS = ['gpt-5.5', 'gpt-5.4-mini', 'gpt-4o-mini'];
+
 async function callAI(modelName, prompt) {
   const openaiKey = await getSetting('openai_api_key', 'OPENAI_API_KEY');
-  if (openaiKey && (modelName.startsWith('gpt') || !modelName.startsWith('gemini'))) {
+  const geminiKey = await getSetting('google_ai_api_key', 'GOOGLE_AI_API_KEY');
+
+  // Build chain of models to try (preferred first, then fallbacks)
+  const tryOpenAI = openaiKey && (modelName.startsWith('gpt') || !modelName.startsWith('gemini'));
+  if (tryOpenAI) {
     const client = new OpenAI({ apiKey: openaiKey, timeout: 120000 });
-    const params = {
-      model: modelName.startsWith('gpt') ? modelName : 'gpt-5.5',
-      messages: [{ role: 'user', content: prompt }],
-    };
-    if (modelName.startsWith('gpt-5')) {
-      params.max_completion_tokens = 4000;
-    } else {
-      params.max_tokens = 4000;
+    const chain = [modelName, ...OPENAI_TEXT_FALLBACKS.filter(m => m !== modelName)];
+
+    let lastErr = null;
+    for (const m of chain) {
+      try {
+        console.log(`[ArticleWriter] Trying OpenAI model: ${m}`);
+        const params = {
+          model: m,
+          messages: [{ role: 'user', content: prompt }],
+        };
+        if (m.startsWith('gpt-5')) {
+          params.max_completion_tokens = 4000;
+        } else {
+          params.max_tokens = 4000;
+        }
+        const completion = await client.chat.completions.create(params);
+        const content = completion.choices[0]?.message?.content || '';
+        if (content) {
+          console.log(`[ArticleWriter] ✅ OpenAI ${m} OK (${content.length} chars)`);
+          return content;
+        }
+      } catch (err) {
+        lastErr = err;
+        console.warn(`[ArticleWriter] ${m} failed: ${err.message}`);
+        // Tiếp tục với model kế tiếp
+      }
     }
-    const completion = await client.chat.completions.create(params);
-    return completion.choices[0]?.message?.content || '';
+    // All OpenAI models failed → thử Gemini nếu có
+    if (!geminiKey) throw lastErr || new Error('Tất cả OpenAI models đều fail');
   }
 
-  const geminiKey = await getSetting('google_ai_api_key', 'GOOGLE_AI_API_KEY');
   if (geminiKey) {
-    const genAI = new GoogleGenerativeAI(geminiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-04-17' });
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    try {
+      console.log('[ArticleWriter] Trying Gemini fallback');
+      const genAI = new GoogleGenerativeAI(geminiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      console.log(`[ArticleWriter] ✅ Gemini OK (${text.length} chars)`);
+      return text;
+    } catch (err) {
+      throw new Error(`Gemini fallback failed: ${err.message}`);
+    }
   }
 
   throw new Error('Không có AI key nào được cấu hình');

@@ -84,7 +84,7 @@ export default function StoryReviewPage() {
       addToast('Đã tạo lại bài viết!', 'success');
       loadPost();
     } catch (err) {
-      addToast('Lỗi tạo lại', 'error');
+      addToast(err.response?.data?.error || err.message || 'Lỗi tạo lại', 'error');
     } finally {
       setRegenerating(false);
     }
