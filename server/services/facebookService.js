@@ -135,8 +135,20 @@ export async function publishToPage({ caption, imageUrl, imagePath, pageId, acce
     };
   } catch (err) {
     const fbError = err.response?.data?.error;
-    console.error(`[FB] ❌ Post failed:`, fbError?.message || err.message);
-    throw new Error(fbError?.message || err.message);
+    const fbMsg = fbError?.message || err.message;
+    console.error(`[FB] ❌ Post failed:`, fbMsg);
+
+    // Translate common errors thành hint tiếng Việt rõ ràng
+    if (fbMsg.includes('publish_actions') || fbError?.code === 200) {
+      throw new Error('Token thiếu quyền pages_manage_posts. Vào Graph API Explorer (developers.facebook.com/tools/explorer), tick các scope: pages_show_list, pages_manage_posts, pages_read_engagement → Generate Access Token → đổi sang Page Token → copy vào Cài đặt.');
+    }
+    if (fbError?.code === 190) {
+      throw new Error('Page Access Token đã hết hạn. Vào Cài đặt → Cấu hình Facebook → cập nhật token mới (hoặc bấm Exchange token nếu đã có App ID/Secret).');
+    }
+    if (fbError?.code === 100) {
+      throw new Error(`Tham số không hợp lệ: ${fbMsg}`);
+    }
+    throw new Error(fbMsg);
   }
 }
 
