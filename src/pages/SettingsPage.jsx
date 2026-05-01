@@ -329,7 +329,7 @@ export default function SettingsPage({ onLogout }) {
             <label>Số chủ đề mỗi lần tạo</label>
             <input type="number" min="1" max="20" value={autoForm.topic_suggestion_batch_size}
               onChange={e => setAutoForm(f => ({ ...f, topic_suggestion_batch_size: e.target.value }))} />
-            <small style={{ color: '#888', marginTop: 4 }}>Áp dụng cho cả cron và bấm tay. Mặc định 5 (~$0.005/lần với gpt-4o-mini).</small>
+            <small style={{ color: '#888', marginTop: 4 }}>Áp dụng cho cả cron và bấm tay. Dùng cùng model với "AI Model mặc định" ở trên (gpt-5.5 → ~$0.05/lần, gpt-5.4-mini → ~$0.01/lần).</small>
           </div>
           <div className="settings-divider" />
           <div className="form-group">

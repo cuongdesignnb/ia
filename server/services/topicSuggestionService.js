@@ -23,7 +23,7 @@ const DEFAULT_CATEGORIES = ['survival', 'science', 'history', 'nature', 'humanit
 export async function generateBatch({ source = 'manual', count } = {}) {
   const batchSize = count || parseInt(await getSetting('topic_suggestion_batch_size') || String(DEFAULT_BATCH_SIZE));
   const categories = JSON.parse(await getSetting('auto_story_categories') || JSON.stringify(DEFAULT_CATEGORIES));
-  const modelName = await getSetting('auto_story_ai_model') || 'gpt-4o-mini';
+  const modelName = await getSetting('auto_story_ai_model') || 'gpt-5.5';
 
   // Avoid duplicates against both used stories and pending suggestions
   const [storyTitles, suggestionTitles] = await Promise.all([
