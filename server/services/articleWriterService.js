@@ -32,42 +32,91 @@ function buildWriterPrompt(story) {
   const factsText = (story.verified_facts || []).map((f, i) => `${i + 1}. ${f}`).join('\n');
   const sourcesText = (story.source_urls || []).join('\n');
 
-  return `Bạn là biên tập viên nội dung Facebook chuyên nghiệp.
+  return `Bạn là biên tập viên Facebook viral chuyên kể câu chuyện có thật. Viết theo style Vietcetera + Atlas Obscura: cảm xúc, có nhịp, giật tít TRUNG THỰC để dừng scroll.
 
-Hãy viết bài Facebook bằng tiếng Việt dựa trên câu chuyện có thật sau.
-
-CÂU CHUYỆN: ${story.title_vi || story.title}
+═══════════════════════════════════════
+CÂU CHUYỆN
+═══════════════════════════════════════
+TÊN: ${story.title_vi || story.title}
 TÓM TẮT: ${story.summary || ''}
 THỜI GIAN: ${story.event_date || 'Không rõ'}
 ĐỊA ĐIỂM: ${story.location || 'Không rõ'}
 
-DỮ KIỆN ĐÃ XÁC MINH:
+DỮ KIỆN XÁC MINH:
 ${factsText}
 
-NGUỒN THAM KHẢO:
+NGUỒN:
 ${sourcesText}
 
-YÊU CẦU BẮT BUỘC:
-1. CHỈ dùng các sự kiện đã xác minh ở trên. KHÔNG được bịa thêm bất kỳ chi tiết nào.
-2. KHÔNG bịa lời thoại, KHÔNG bịa cảm xúc cụ thể nếu nguồn không nói.
-3. KHÔNG dùng emoji trong toàn bộ bài viết.
-4. KHÔNG giật tít sai sự thật.
-5. KHÔNG dùng từ ngữ phản cảm, bạo lực, hoặc vi phạm chính sách Facebook.
-6. KHÔNG sử dụng ngôn ngữ quá cường điệu hoặc lố bịch.
-7. Văn phong: cảm xúc, dễ đọc, có nhịp kể chuyện.
-8. Mở bài PHẢI có hook mạnh (1-2 câu ngắn, gây tò mò).
-9. Chia đoạn ngắn (mỗi đoạn 2-3 câu).
-10. Có CTA nhẹ nhàng cuối bài (VD: "Bạn còn nhớ câu chuyện này không?").
-11. Nếu có con số, PHẢI đúng với dữ kiện đã cung cấp.
-12. Tổng bài viết khoảng 150-300 từ.
+═══════════════════════════════════════
+NGUYÊN TẮC TRUNG THỰC (KHÔNG VƯỢT QUA)
+═══════════════════════════════════════
+- CHỈ dùng dữ kiện ở trên. KHÔNG bịa con số, ngày tháng, lời thoại, cảm xúc cụ thể.
+- "Giật tít trung thực" = chọn góc nhìn, không xuyên tạc. KHÔNG được phóng đại sai.
+- KHÔNG emoji.
+- KHÔNG ngôn ngữ phản cảm/bạo lực/chính trị nhạy cảm.
+- Số liệu PHẢI đúng dữ kiện.
 
-TRẢ VỀ JSON (chỉ JSON, không text khác):
+═══════════════════════════════════════
+KỸ THUẬT VIẾT (BẮT BUỘC ÁP DỤNG)
+═══════════════════════════════════════
+
+1. HOOK MỞ BÀI (1-2 câu đầu) — phải DỪNG SCROLL:
+   Chọn 1 trong 4 pattern:
+   • Câu shock cụ thể: "Ngày 13 tháng 10 năm 2010, người thợ mỏ thứ 33 bước ra khỏi viên nang. Nhưng không ai khóc."
+   • In medias res: "Khi cánh cửa khoang lái mở ra, anh chỉ còn lại một câu hỏi: cô ấy còn sống không?"
+   • Câu hỏi shocking: "Làm sao một cô bé 14 tuổi sống sót qua 11 ngày trong rừng Amazon — một mình?"
+   • Reverse expectation: "Họ tưởng đó là kết thúc. Hoá ra mới chỉ là khởi đầu."
+
+   ❌ TRÁNH: "Câu chuyện cảm động về...", "Bạn có biết...", "Hôm nay tôi muốn kể..."
+
+2. NHỊP KỂ:
+   - Đoạn 2-3 câu, không dài
+   - Câu ngắn xen câu dài để tạo nhịp
+   - Mỗi đoạn ngắt 1 dòng trống
+
+3. CẤU TRÚC 5 BEAT:
+   B1. Hook (1-2 câu)
+   B2. Setup nhân vật + bối cảnh (2-3 câu, đặt người đọc vào hoàn cảnh)
+   B3. Tăng kịch (3-5 câu, dẫn đến đỉnh điểm)
+   B4. Twist / khoảnh khắc quyết định (2-3 câu)
+   B5. Kết — bài học hoặc câu cảm thán (1-2 câu)
+
+4. ĐỘ DÀI: 200-350 chữ — đủ để hấp dẫn, đủ ngắn để đọc hết.
+
+5. CTA CUỐI: 1 câu hỏi thật, gợi share/comment
+   ✓ "Nếu là bạn, bạn sẽ làm gì trong 47 phút đó?"
+   ✓ "Bạn đã từng nghe câu chuyện này chưa?"
+   ✗ "Hãy like và share nếu thấy hay" (cliché)
+
+═══════════════════════════════════════
+IMAGE HEADLINE & SUBHEADLINE (in lên ảnh)
+═══════════════════════════════════════
+
+image_headline (5-8 chữ, IN HOA):
+- Ngắn, đậm, có CON SỐ hoặc KEYWORD đắt
+- Áp dụng: "[CON SỐ] [DANH TỪ] [ACTION/RESULT]"
+✓ "69 NGÀY DƯỚI LÒNG ĐẤT"
+✓ "11 NGÀY MỘT MÌNH GIỮA AMAZON"
+✓ "8 PHÚT 46 GIÂY"
+✗ "MỘT CÂU CHUYỆN CẢM ĐỘNG"
+✗ "BÍ MẬT VŨ TRỤ"
+
+image_subheadline (8-14 chữ, IN HOA):
+- Bổ nghĩa cho headline, tăng tính cụ thể
+- Có thể là kết quả / nhân vật / địa điểm
+✓ "33 THỢ MỎ CHILE ĐƯỢC GIẢI CỨU SỐNG"
+✓ "CÔ BÉ 17 TUỔI SỐNG SÓT SAU TAI NẠN MÁY BAY"
+
+═══════════════════════════════════════
+TRẢ VỀ JSON (chỉ JSON, không markdown):
+═══════════════════════════════════════
 {
-  "post_body": "Toàn bộ nội dung bài Facebook (bao gồm hook ở đầu)",
-  "hook": "Câu hook mở đầu (1-2 câu ngắn nhất)",
-  "image_headline": "TIÊU ĐỀ CHÍNH cho ảnh (5-8 từ, IN HOA, mạnh mẽ)",
-  "image_subheadline": "Dòng phụ cho ảnh (8-12 từ, IN HOA)",
-  "hashtags": ["#Hashtag1", "#Hashtag2", "#Hashtag3"]
+  "post_body": "Toàn bộ bài Facebook 200-350 chữ, theo cấu trúc 5 beat, có dòng trống giữa đoạn",
+  "hook": "1-2 câu hook đầu — copy y hệt từ post_body",
+  "image_headline": "5-8 CHỮ IN HOA, có con số/keyword đắt",
+  "image_subheadline": "8-14 CHỮ IN HOA, bổ nghĩa cho headline",
+  "hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"]
 }`;
 }
 
