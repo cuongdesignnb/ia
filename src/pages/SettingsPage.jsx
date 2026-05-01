@@ -36,6 +36,8 @@ export default function SettingsPage({ onLogout }) {
     image_logo_size: '120',
     image_logo_media_id: '',
     unsplash_api_key: '',
+    topic_suggestion_enabled: 'true',
+    topic_suggestion_batch_size: '5',
   });
   const [showMediaLib, setShowMediaLib] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
@@ -310,6 +312,24 @@ export default function SettingsPage({ onLogout }) {
             <label>Kích thước logo (px)</label>
             <input type="number" min="40" max="300" value={autoForm.image_logo_size}
               onChange={e => setAutoForm(f => ({ ...f, image_logo_size: e.target.value }))} />
+          </div>
+          <div className="settings-divider" />
+          <h4 style={{ margin: '0 0 12px', fontSize: '.9rem', color: '#ccc', display: 'flex', alignItems: 'center', gap: 6 }}><Bot size={15} /> Gợi ý chủ đề (kho tích luỹ)</h4>
+          <div className="form-group">
+            <label>Tự động tạo gợi ý hàng ngày (06:00)</label>
+            <label className="toggle-switch">
+              <input type="checkbox" checked={autoForm.topic_suggestion_enabled === 'true'}
+                onChange={e => setAutoForm(f => ({ ...f, topic_suggestion_enabled: e.target.checked ? 'true' : 'false' }))} />
+              <span className="toggle-slider"></span>
+              <span className="toggle-label">{autoForm.topic_suggestion_enabled === 'true' ? 'Đang bật cron 06:00' : 'Đã tắt — chỉ tạo khi bấm tay'}</span>
+            </label>
+            <small style={{ color: '#888', marginTop: 4 }}>Tắt để tiết kiệm token. Bấm "Tạo thêm gợi ý" trong Auto Content khi cần.</small>
+          </div>
+          <div className="form-group">
+            <label>Số chủ đề mỗi lần tạo</label>
+            <input type="number" min="1" max="20" value={autoForm.topic_suggestion_batch_size}
+              onChange={e => setAutoForm(f => ({ ...f, topic_suggestion_batch_size: e.target.value }))} />
+            <small style={{ color: '#888', marginTop: 4 }}>Áp dụng cho cả cron và bấm tay. Mặc định 5 (~$0.005/lần với gpt-4o-mini).</small>
           </div>
           <div className="settings-divider" />
           <div className="form-group">

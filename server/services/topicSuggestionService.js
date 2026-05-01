@@ -10,7 +10,7 @@ import { Op } from 'sequelize';
 import { TopicSuggestion, TrueStory } from '../models/index.js';
 import { getSetting } from './settingsService.js';
 
-const DEFAULT_BATCH_SIZE = 8;
+const DEFAULT_BATCH_SIZE = 5;
 const DEFAULT_CATEGORIES = ['survival', 'science', 'history', 'nature', 'humanity', 'space', 'disaster', 'animal'];
 
 /**
