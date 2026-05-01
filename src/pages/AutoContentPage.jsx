@@ -75,7 +75,7 @@ export default function AutoContentPage() {
   const handleQuickApprove = async (id) => {
     try {
       await approveGeneratedPost(id);
-      addToast('Đã duyệt bài!', 'success');
+      addToast('Đã duyệt — bài chuyển sang Quản lý bài viết', 'success');
       load();
     } catch (err) {
       addToast('Lỗi duyệt bài', 'error');

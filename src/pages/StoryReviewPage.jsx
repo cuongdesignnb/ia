@@ -51,7 +51,7 @@ export default function StoryReviewPage() {
   const handleApprove = async () => {
     try {
       await approveGeneratedPost(id);
-      addToast('Đã duyệt bài!', 'success');
+      addToast('Đã duyệt — bài chuyển sang Quản lý bài viết', 'success');
       loadPost();
     } catch { addToast('Lỗi', 'error'); }
   };

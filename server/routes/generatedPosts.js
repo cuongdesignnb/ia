@@ -120,14 +120,39 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Approve post
+// Approve post — promote sang bảng `posts` với status='draft' để hiển thị
+// trong PostList (/posts), user publish/lên lịch từ đó. Idempotent.
 router.post('/:id/approve', async (req, res) => {
   try {
-    const post = await GeneratedPost.findByPk(req.params.id);
-    if (!post) return res.status(404).json({ error: 'Post not found' });
-    await post.update({ status: 'approved' });
-    res.json({ success: true, status: 'approved' });
+    const genPost = await GeneratedPost.findByPk(req.params.id, {
+      include: [{ model: TrueStory, as: 'story' }, { model: MediaFile, as: 'finalImage' }],
+    });
+    if (!genPost) return res.status(404).json({ error: 'Post not found' });
+
+    // Idempotent: nếu đã có published_post_id thì không tạo Post mới
+    let post = genPost.published_post_id
+      ? await Post.findByPk(genPost.published_post_id)
+      : null;
+
+    if (!post) {
+      post = await Post.create({
+        title: genPost.story?.title_vi || genPost.hook || 'Auto Story',
+        caption: genPost.post_body,
+        image_url: genPost.finalImage?.path || null,
+        image_source: 'ai_generated',
+        fb_page_id: genPost.fb_page_id,
+        status: 'draft', // chờ user bấm Publish trong PostList
+        publish_type: 'direct',
+        ai_model_used: genPost.ai_model_used,
+        metadata: { source: 'true_story', story_id: genPost.story_id, generated_post_id: genPost.id },
+      });
+    }
+
+    await genPost.update({ status: 'approved', published_post_id: post.id });
+
+    res.json({ success: true, status: 'approved', post_id: post.id });
   } catch (err) {
+    console.error('[Approve]', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -172,20 +197,32 @@ router.post('/:id/publish', async (req, res) => {
       accessToken: genPost.fbPage.access_token,
     });
 
-    // Create Post record for tracking
-    const post = await Post.create({
-      title: genPost.story?.title_vi || genPost.hook || 'Auto Story',
-      caption: genPost.post_body,
-      image_url: genPost.finalImage?.path || null,
-      image_source: 'ai_generated',
-      fb_page_id: genPost.fb_page_id,
-      status: 'published',
-      publish_type: 'direct',
-      published_at: new Date(),
-      fb_post_id: result.fb_post_id,
-      ai_model_used: genPost.ai_model_used,
-      metadata: { source: 'true_story', story_id: genPost.story_id },
-    });
+    // Reuse existing Post record nếu approve đã tạo, ngược lại tạo mới
+    let post = genPost.published_post_id
+      ? await Post.findByPk(genPost.published_post_id)
+      : null;
+
+    if (post) {
+      await post.update({
+        status: 'published',
+        published_at: new Date(),
+        fb_post_id: result.fb_post_id,
+      });
+    } else {
+      post = await Post.create({
+        title: genPost.story?.title_vi || genPost.hook || 'Auto Story',
+        caption: genPost.post_body,
+        image_url: genPost.finalImage?.path || null,
+        image_source: 'ai_generated',
+        fb_page_id: genPost.fb_page_id,
+        status: 'published',
+        publish_type: 'direct',
+        published_at: new Date(),
+        fb_post_id: result.fb_post_id,
+        ai_model_used: genPost.ai_model_used,
+        metadata: { source: 'true_story', story_id: genPost.story_id, generated_post_id: genPost.id },
+      });
+    }
 
     await genPost.update({
       status: 'published',
