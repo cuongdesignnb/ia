@@ -60,57 +60,99 @@ export async function publishToPage({ caption, imageUrl, imagePath, pageId, acce
   try {
     let response;
 
+    // === Helper: 2-step DRAFT post với ảnh ===
+    // FB API: photo + published=false → Unpublished Photo (không hiện trong Drafts UI).
+    // Đúng cách: upload photo temporary → attach vào feed post với unpublished_content_type=DRAFT.
+    const draftPostWithMedia = async (mediaSourceFn) => {
+      const FormData = (await import('form-data')).default;
+
+      // Step 1: upload photo as unpublished + temporary
+      const photoForm = new FormData();
+      mediaSourceFn(photoForm); // append 'source' field
+      photoForm.append('published', 'false');
+      photoForm.append('temporary', 'true');
+      photoForm.append('access_token', accessToken);
+      const photoResp = await axios.post(
+        `${FB_API_BASE}/${FB_API_VERSION}/${pageId}/photos`,
+        photoForm,
+        { headers: photoForm.getHeaders(), maxContentLength: Infinity }
+      );
+      const photoId = photoResp.data.id;
+      console.log(`[FB] Step 1/2: temporary photo uploaded ${photoId}`);
+
+      // Step 2: feed post với attached media + DRAFT
+      const feedPayload = {
+        message: caption || '',
+        published: 'false',
+        attached_media: JSON.stringify([{ media_fbid: photoId }]),
+        access_token: accessToken,
+      };
+      if (unpublishedContentType) feedPayload.unpublished_content_type = unpublishedContentType;
+      if (scheduledPublishTime) feedPayload.scheduled_publish_time = scheduledPublishTime;
+      const feedResp = await axios.post(`${FB_API_BASE}/${FB_API_VERSION}/${pageId}/feed`, feedPayload);
+      console.log(`[FB] Step 2/2: ${unpublishedContentType || 'unpublished'} feed post created`);
+      return feedResp;
+    };
+
     // === Đăng ảnh từ file local ===
     if (imagePath && fs.existsSync(imagePath)) {
-      const url = `${FB_API_BASE}/${FB_API_VERSION}/${pageId}/photos`;
       const FormData = (await import('form-data')).default;
-      const form = new FormData();
-      form.append('source', fs.createReadStream(imagePath));
-      form.append('caption', caption || '');
-      form.append('access_token', accessToken);
       if (!published) {
-        form.append('published', 'false');
-        if (unpublishedContentType) form.append('unpublished_content_type', unpublishedContentType);
-        if (scheduledPublishTime) form.append('scheduled_publish_time', String(scheduledPublishTime));
+        // DRAFT/SCHEDULED có ảnh → 2-step để hiện trong Business Suite Drafts
+        response = await draftPostWithMedia((form) => {
+          form.append('source', fs.createReadStream(imagePath));
+        });
+      } else {
+        // Publish ngay → 1-step photo (hiện luôn trên timeline)
+        const url = `${FB_API_BASE}/${FB_API_VERSION}/${pageId}/photos`;
+        const form = new FormData();
+        form.append('source', fs.createReadStream(imagePath));
+        form.append('caption', caption || '');
+        form.append('access_token', accessToken);
+        response = await axios.post(url, form, { headers: form.getHeaders(), maxContentLength: Infinity });
       }
-      response = await axios.post(url, form, { headers: form.getHeaders(), maxContentLength: Infinity });
 
     } else if (imageUrl && imageUrl.startsWith('data:')) {
       // === Ảnh base64 (từ AI generate) ===
-      const url = `${FB_API_BASE}/${FB_API_VERSION}/${pageId}/photos`;
-      const FormData = (await import('form-data')).default;
-      const form = new FormData();
-
       const matches = imageUrl.match(/^data:image\/(\w+);base64,(.+)$/);
-      if (matches) {
-        const buffer = Buffer.from(matches[2], 'base64');
-        form.append('source', buffer, { filename: `image.${matches[1]}`, contentType: `image/${matches[1]}` });
-      } else {
-        throw new Error('Invalid base64 image format');
-      }
-      form.append('caption', caption || '');
-      form.append('access_token', accessToken);
+      if (!matches) throw new Error('Invalid base64 image format');
+      const buffer = Buffer.from(matches[2], 'base64');
+      const ext = matches[1];
+
       if (!published) {
-        form.append('published', 'false');
-        if (unpublishedContentType) form.append('unpublished_content_type', unpublishedContentType);
-        if (scheduledPublishTime) form.append('scheduled_publish_time', String(scheduledPublishTime));
+        response = await draftPostWithMedia((form) => {
+          form.append('source', buffer, { filename: `image.${ext}`, contentType: `image/${ext}` });
+        });
+      } else {
+        const url = `${FB_API_BASE}/${FB_API_VERSION}/${pageId}/photos`;
+        const FormData = (await import('form-data')).default;
+        const form = new FormData();
+        form.append('source', buffer, { filename: `image.${ext}`, contentType: `image/${ext}` });
+        form.append('caption', caption || '');
+        form.append('access_token', accessToken);
+        response = await axios.post(url, form, { headers: form.getHeaders(), maxContentLength: Infinity });
       }
-      response = await axios.post(url, form, { headers: form.getHeaders(), maxContentLength: Infinity });
 
     } else if (imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
-      // === Ảnh từ URL public (chỉ chấp nhận http/https) ===
-      const url = `${FB_API_BASE}/${FB_API_VERSION}/${pageId}/photos`;
-      const payload = {
-        url: imageUrl,
-        caption: caption || '',
-        access_token: accessToken,
-      };
+      // === Ảnh từ URL public ===
       if (!published) {
-        payload.published = 'false';
-        if (unpublishedContentType) payload.unpublished_content_type = unpublishedContentType;
-        if (scheduledPublishTime) payload.scheduled_publish_time = scheduledPublishTime;
+        // DRAFT với URL: download về buffer rồi đi qua draftPostWithMedia
+        const imgResp = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 30000 });
+        const buffer = Buffer.from(imgResp.data);
+        const contentType = imgResp.headers['content-type'] || 'image/jpeg';
+        const ext = (contentType.match(/image\/(\w+)/)?.[1]) || 'jpg';
+        response = await draftPostWithMedia((form) => {
+          form.append('source', buffer, { filename: `image.${ext}`, contentType });
+        });
+      } else {
+        const url = `${FB_API_BASE}/${FB_API_VERSION}/${pageId}/photos`;
+        const payload = {
+          url: imageUrl,
+          caption: caption || '',
+          access_token: accessToken,
+        };
+        response = await axios.post(url, payload);
       }
-      response = await axios.post(url, payload);
 
     } else {
       // === Đăng text only (không có ảnh) ===
