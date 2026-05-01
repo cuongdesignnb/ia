@@ -28,9 +28,23 @@ export async function writeArticle(story, modelName = null) {
   };
 }
 
+// Sequelize JSON đôi khi trả về string (khi underlying column là LONGTEXT) — parse phòng thủ
+function toArray(v) {
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string' && v.trim()) {
+    try {
+      const parsed = JSON.parse(v);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+  return [];
+}
+
 function buildWriterPrompt(story) {
-  const factsText = (story.verified_facts || []).map((f, i) => `${i + 1}. ${f}`).join('\n');
-  const sourcesText = (story.source_urls || []).join('\n');
+  const facts = toArray(story.verified_facts);
+  const sources = toArray(story.source_urls);
+  const factsText = facts.map((f, i) => `${i + 1}. ${f}`).join('\n');
+  const sourcesText = sources.join('\n');
 
   return `Bạn là biên tập viên Facebook viral chuyên kể câu chuyện có thật. Viết theo style Vietcetera + Atlas Obscura: cảm xúc, có nhịp, giật tít TRUNG THỰC để dừng scroll.
 
