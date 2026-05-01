@@ -65,65 +65,89 @@ function buildBatchPrompt(count, categories, avoidList) {
     ? `\n\nTUYỆT ĐỐI KHÔNG TRÙNG VỚI CÁC CHỦ ĐỀ ĐÃ CÓ:\n${avoidList.slice(0, 80).map(t => `- ${t}`).join('\n')}`
     : '';
 
-  return `Bạn là biên tập viên fanpage Facebook viral chuyên kể câu chuyện có thật. Style: Atlas Obscura, BBC Future, Vietcetera.
+  return `Bạn là biên tập viên fanpage Facebook VIRAL chuyên kể câu chuyện có thật. Mỗi title đề xuất phải vượt qua bài test:
 
-NHIỆM VỤ: Đề xuất ${count} chủ đề CÓ THẬT, ít người biết, **giật tít theo curiosity-gap không bịa** — đọc title là phải DỪNG SCROLL và muốn click ngay.
+🔥 LITMUS TEST: Một người Việt đang lướt Facebook lúc 11h đêm thấy title này → DỪNG ngón tay → Bấm ngay. Nếu KHÔNG → loại.
+
+NHIỆM VỤ: Đề xuất ${count} chủ đề CÓ THẬT, đọc title là không thể không click. Đây là loại "addictive content" — vẫn 100% trung thực, chỉ là chọn góc nhìn shocking nhất.
 
 ══════════════════════════════════════════
-NGUYÊN TẮC VIẾT TITLE_VI (giật tít trung thực):
+LOẠI CHỦ ĐỀ HOT NHẤT (ưu tiên):
+══════════════════════════════════════════
+🔥 SỐNG SÓT KHÔNG TƯỞNG: rơi máy bay, chìm tàu, kẹt hang động, mất tích nhiều ngày, đối đầu thiên nhiên
+🧬 KHOA HỌC LÀM RỢN GÁY: kết quả thí nghiệm bất ngờ, bí ẩn vũ trụ vừa giải mã, hiện tượng tự nhiên không giải thích được
+👤 NHÂN VẬT KHÔNG THỂ TƯỞNG: 1 con người làm điều phi thường, "ông/bà ấy là ai mà có thể...", trẻ em / cụ già làm điều gây sốc
+🕵️ BÍ ẨN ĐƯỢC GIẢI MÃ: vụ án cũ, mất tích, cold case có manh mối mới
+⚡ KHOẢNH KHẮC THAY ĐỔI THẾ GIỚI: 1 quyết định / 1 phút / 1 dòng tin → đảo lộn lịch sử
+🦁 ĐỘNG VẬT ANH HÙNG: cứu người, hành vi thông minh phi thường, gắn bó kỳ lạ
+🌑 LỊCH SỬ ĐEN: chương ít người dạy ở trường, sự kiện bị che giấu, hậu quả lâu dài
+🛸 SỰ TRÙNG HỢP KỲ LẠ: 2 người / 2 sự kiện trùng theo cách thống kê không thể giải thích
+
+══════════════════════════════════════════
+6 KỸ THUẬT VIẾT TITLE_VI (chọn 1 cho mỗi title):
 ══════════════════════════════════════════
 
-1. **CONFLICT / UNEXPECTED**: bắt đầu bằng nghịch lý, kết quả ngược dự đoán
-   ✓ "Cô bé 17 tuổi rơi 3km từ máy bay xuống rừng Amazon — và sống sót đi bộ 11 ngày"
-   ✗ "Sự sống sót kỳ diệu của Juliane Koepcke" (quá generic)
+1. **CONFLICT / NGHỊCH LÝ**: kết quả ngược 180° dự đoán
+   ✓ "Cô bé 17 tuổi rơi 3km từ máy bay xuống Amazon — và đi bộ 11 ngày một mình ra khỏi rừng"
+   ✓ "Anh ấy đã chết 47 phút. Khi tỉnh lại, anh nhớ mọi thứ — kể cả bác sĩ đang nói chuyện gì."
 
-2. **CON SỐ CỤ THỂ + KẾT CỤC**: số làm câu chuyện đáng tin, kết cục tạo hook
+2. **CON SỐ CỤ THỂ + KẾT CỤC GÂY SỐC**:
    ✓ "33 người. 69 ngày dưới lòng đất. Không ai chết."
-   ✓ "8 phút 46 giây — và mọi thứ thay đổi"
-   ✗ "Một sự kiện đáng nhớ"
+   ✓ "1 dòng tweet. 4 phút. 38 tỉ USD bốc hơi."
+   ✓ "8 phút 46 giây — và cả nước Mỹ thức tỉnh"
 
-3. **CURIOSITY GAP**: nói đủ để gợi tò mò, giấu phần kết
-   ✓ "NASA mất liên lạc với Voyager 1 trong 5 tháng — và lý do khiến cả phòng kỹ sư im lặng"
-   ✗ "Phi thuyền Voyager 1 và sự cố năm 2023"
+3. **CURIOSITY GAP — NÓI 80%, GIẤU 20%**:
+   ✓ "NASA mất liên lạc với Voyager 1 trong 5 tháng. Khi tín hiệu trở lại, nó nói một điều khiến cả phòng kỹ sư im lặng."
+   ✓ "Người duy nhất từng nghe được tín hiệu lạ từ vũ trụ — và biến mất 24 giờ sau đó"
 
-4. **NHÂN VẬT TRƯỚC SỰ KIỆN**: tên/đặc điểm + tình huống bất thường
-   ✓ "Một người gác hải đăng, một cơn bão, và lá thư anh viết khi nghĩ mình sẽ chết"
-   ✗ "Câu chuyện về người gác hải đăng"
+4. **NHÂN VẬT + TÌNH HUỐNG**: profile ngắn + bối cảnh shocking
+   ✓ "Một bà nội trợ 52 tuổi, 1 cuốn nhật ký, và bí mật đã được giấu suốt Chiến tranh Lạnh"
+   ✓ "Cậu bé 12 tuổi gửi lá thư đến NASA — câu trả lời đã thay đổi cả chương trình Apollo"
 
-5. **SO SÁNH / TƯƠNG PHẢN**:
-   ✓ "Trước: cậu bé bán báo. Sau 12 năm: người đầu tiên trên Mặt Trăng."
+5. **TƯƠNG PHẢN TRƯỚC/SAU**:
+   ✓ "Trước: thợ hớt tóc vô danh ở Sài Gòn. Sau 1975: người duy nhất biết nơi giấu kho báu trị giá 80 triệu USD."
+   ✓ "Hôm thứ Hai: bữa tối bình thường. Thứ Ba: 5 nhà khoa học mất tích vĩnh viễn."
 
-6. **CÂU HỎI MỞ KÍCH NÃO**:
-   ✓ "Làm sao một bức điện 4 ký tự cứu được 230 hành khách máy bay rơi xuống Đại Tây Dương?"
-
-══════════════════════════════════════════
-TUYỆT ĐỐI TRÁNH:
-══════════════════════════════════════════
-- "Bí mật ... mà bạn chưa biết" — cliché, AI-feel
-- "Sự thật về ..." — flat
-- "Câu chuyện cảm động về ..." — telegraph cảm xúc
-- "Không thể tin được ..." — empty filler
-- Title chung chung kiểu "Sao Mộc và những điều thú vị"
+6. **CÂU HỎI ĐÁNH VÀO TÒ MÒ**:
+   ✓ "Làm sao một bức điện 4 ký tự cứu được 230 hành khách rơi xuống Đại Tây Dương?"
+   ✓ "Tại sao 12 đứa trẻ kẹt trong hang Thái Lan lại sống sót — trong khi 1 thợ lặn dày dạn nhất chết?"
 
 ══════════════════════════════════════════
-YÊU CẦU NỘI DUNG:
+TUYỆT ĐỐI CẤM (signal AI/cliché):
 ══════════════════════════════════════════
-1. CÓ THẬT, xác minh được (Wikipedia/BBC/Reuters/NASA/Nat Geo/AP)
+✗ "Bí mật ... mà bạn chưa biết"
+✗ "Sự thật về ..."
+✗ "Câu chuyện cảm động về ..."
+✗ "Không thể tin được ..."
+✗ "X điều thú vị về ..."
+✗ Title generic kiểu "Sao Mộc và những điều thú vị"
+✗ Title-không-có-nhân-vật-cụ-thể-không-có-con-số
+
+══════════════════════════════════════════
+TUYỆT ĐỐI TRÁNH CHỦ ĐỀ ĐẠI TRÀ:
+══════════════════════════════════════════
+Hachiko, Titanic, Apollo 11, 9/11, Chernobyl, Holocaust, JFK, Hiroshima, Pompeii, COVID, Marie Curie, Einstein, da Vinci.
+→ Tìm chủ đề "long-tail": câu chuyện ÍT NGƯỜI VIỆT BIẾT nhưng đáng kinh ngạc.
+
+══════════════════════════════════════════
+YÊU CẦU CHẤT LƯỢNG:
+══════════════════════════════════════════
+1. CÓ THẬT 100% — verifiable trên Wikipedia/BBC/Reuters/NASA/Nat Geo/AP/Smithsonian
 2. Đa dạng category: ${categories.join(', ')}
-3. ÍT NGƯỜI BIẾT — tránh: Hachiko, Titanic, 9/11, Apollo 11, Chernobyl... đã quá đại trà
-4. Có yếu tố: kịch tính / khoa học khó tin / con người phi thường / nghịch lý
-5. Mỗi đề xuất một câu chuyện hoàn toàn khác nhau${avoidBlock}
+3. Mỗi đề xuất KHÁC HẲN nhau — không cùng motif (vd: tránh 5 cái cùng kiểu "máy bay rơi sống sót")
+4. title_vi 14-30 chữ tiếng Việt — đủ dài để có hook, đủ ngắn để đọc 1 nhịp
+5. summary 2 câu: câu 1 setup tình huống → câu 2 dangle 1 chi tiết shocking nhưng KHÔNG spoil kết cục${avoidBlock}
 
 ══════════════════════════════════════════
-TRẢ VỀ JSON ARRAY (chỉ JSON, không markdown):
+TRẢ VỀ JSON ARRAY (chỉ JSON, không markdown fence):
 ══════════════════════════════════════════
 [
   {
-    "title": "Concise English event name",
-    "title_vi": "Title GIẬT TÍT trung thực, 12-25 chữ, áp dụng 1 trong 6 nguyên tắc trên",
-    "summary": "2 câu — câu 1 setup nghịch lý, câu 2 hint kết cục mà không spoil hết",
+    "title": "Concise English event name (5-10 words)",
+    "title_vi": "Title VIRAL theo 1 trong 6 kỹ thuật, 14-30 chữ, pass litmus test",
+    "summary": "Câu 1 setup. Câu 2 dangle chi tiết shocking, không spoil.",
     "category": "${categories.join('|')}",
-    "hint_keywords": "specific English keywords for image search (event name + year + location/people)"
+    "hint_keywords": "specific English keywords for image search (event name + year + location + key person)"
   }
 ]`;
 }

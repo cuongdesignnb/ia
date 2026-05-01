@@ -110,16 +110,7 @@
 .btn-generate-batch:hover:not(:disabled) { background: rgba(251,191,36,0.2); transform: translateY(-1px); }
 .btn-generate-batch:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.batches-list { display: flex; flex-direction: column; gap: 20px; }
-.batch-group { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; }
-.batch-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-.batch-source { padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.batch-source.source-cron { background: rgba(99,102,241,0.15); color: #818cf8; }
-.batch-source.source-manual { background: rgba(168,85,247,0.15); color: #c084fc; }
-.batch-time { color: #888; font-size: 12px; }
-.batch-count { color: #666; font-size: 12px; margin-left: auto; }
-
-.suggestions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.suggestions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
 .suggestion-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; transition: all 0.2s; }
 .suggestion-card:hover { border-color: rgba(251,191,36,0.3); transform: translateY(-2px); }
 .suggestion-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }

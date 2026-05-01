@@ -184,19 +184,6 @@ export default function AutoContentPage() {
     }
   };
 
-  // Group suggestions by batch_id (newest batch first)
-  const suggestionBatches = (() => {
-    const map = new Map();
-    for (const s of suggestions) {
-      const key = s.batch_id || `single-${s.id}`;
-      if (!map.has(key)) {
-        map.set(key, { batch_id: s.batch_id, source: s.source, created_at: s.created_at, items: [] });
-      }
-      map.get(key).items.push(s);
-    }
-    return Array.from(map.values()).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  })();
-
   const pendingDrafts = drafts.filter(d => d.status === 'draft');
   const runningJobs = jobs.filter(j => !['completed', 'failed', 'cancelled'].includes(j.status));
   const cancelledJobs = jobs.filter(j => j.status === 'cancelled');
@@ -246,10 +233,10 @@ export default function AutoContentPage() {
         </div>
       </div>
 
-      {/* Topic Suggestions */}
+      {/* Topic Suggestions — flat grid, newest first */}
       <div className="section suggestions-section">
         <div className="section-header">
-          <h2><Lightbulb size={20} /> Gợi ý chủ đề ({suggestions.length})</h2>
+          <h2><Lightbulb size={20} /> Gợi ý chủ đề HOT ({suggestions.length})</h2>
           <button
             className="btn-generate-batch"
             onClick={handleGenerateBatch}
@@ -261,26 +248,14 @@ export default function AutoContentPage() {
           </button>
         </div>
 
-        {suggestionBatches.length === 0 ? (
+        {suggestions.length === 0 ? (
           <div className="empty-state">
             <Lightbulb size={48} />
-            <p>Chưa có gợi ý nào. Bấm <b>"Tạo thêm gợi ý"</b> hoặc đợi cron 06:00 hàng ngày.</p>
+            <p>Chưa có gợi ý nào. Bấm <b>"Tạo thêm gợi ý"</b> để AI sinh chủ đề viral.</p>
           </div>
         ) : (
-          <div className="batches-list">
-            {suggestionBatches.map((batch) => (
-              <div key={batch.batch_id || batch.items[0].id} className="batch-group">
-                <div className="batch-meta">
-                  <span className={`batch-source source-${batch.source}`}>
-                    {batch.source === 'cron' ? '⏰ Hàng ngày' : '✨ Thủ công'}
-                  </span>
-                  <span className="batch-time">
-                    {new Date(batch.created_at).toLocaleString('vi-VN')}
-                  </span>
-                  <span className="batch-count">{batch.items.length} chủ đề</span>
-                </div>
-                <div className="suggestions-grid">
-                  {batch.items.map((s) => (
+          <div className="suggestions-grid">
+            {[...suggestions].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map((s) => (
                     <div key={s.id} className="suggestion-card">
                       <div className="suggestion-header">
                         <span className="suggestion-category">{s.category || 'misc'}</span>
@@ -293,9 +268,6 @@ export default function AutoContentPage() {
                         </button>
                       </div>
                       <h3 className="suggestion-title">{s.title_vi || s.title}</h3>
-                      {s.title_vi && s.title && s.title_vi !== s.title && (
-                        <p className="suggestion-original">{s.title}</p>
-                      )}
                       {s.summary && <p className="suggestion-summary">{s.summary}</p>}
                       <div className="suggestion-actions">
                         <button
@@ -310,9 +282,6 @@ export default function AutoContentPage() {
                       </div>
                     </div>
                   ))}
-                </div>
-              </div>
-            ))}
           </div>
         )}
       </div>
