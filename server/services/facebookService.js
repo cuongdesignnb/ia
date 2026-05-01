@@ -178,19 +178,52 @@ export async function publishToPage({ caption, imageUrl, imagePath, pageId, acce
   } catch (err) {
     const fbError = err.response?.data?.error;
     const fbMsg = fbError?.message || err.message;
-    console.error(`[FB] ❌ Post failed:`, fbMsg);
+    const fbCode = fbError?.code;
+    const fbSubcode = fbError?.error_subcode;
+    console.error(`[FB] ❌ Post failed:`, JSON.stringify({ code: fbCode, subcode: fbSubcode, message: fbMsg }));
 
-    // Translate common errors thành hint tiếng Việt rõ ràng
-    if (fbMsg.includes('publish_actions') || fbError?.code === 200) {
-      throw new Error('Token thiếu quyền pages_manage_posts. Vào Graph API Explorer (developers.facebook.com/tools/explorer), tick các scope: pages_show_list, pages_manage_posts, pages_read_engagement → Generate Access Token → đổi sang Page Token → copy vào Cài đặt.');
+    // Translate common errors — include original FB message for debugging
+    if (fbMsg.includes('publish_actions') || fbCode === 200) {
+      throw new Error(`[FB #${fbCode}] ${fbMsg}\n\n👉 HINT: Token không đủ quyền. Sau khi tick scope mới (pages_manage_posts, pages_read_engagement), PHẢI bấm 'Generate Access Token' lại để tạo token mới. Token cũ KHÔNG tự cập nhật scope. Sau đó đổi sang Page Token và copy vào Settings.`);
     }
-    if (fbError?.code === 190) {
-      throw new Error('Page Access Token đã hết hạn. Vào Cài đặt → Cấu hình Facebook → cập nhật token mới (hoặc bấm Exchange token nếu đã có App ID/Secret).');
+    if (fbCode === 190) {
+      throw new Error(`[FB #190] ${fbMsg}\n\n👉 Page Access Token hết hạn / không hợp lệ. Cập nhật token mới trong Cài đặt.`);
     }
-    if (fbError?.code === 100) {
-      throw new Error(`Tham số không hợp lệ: ${fbMsg}`);
+    if (fbCode === 100) {
+      throw new Error(`[FB #100 invalid_param] ${fbMsg}`);
     }
-    throw new Error(fbMsg);
+    throw new Error(`[FB${fbCode ? ' #' + fbCode : ''}] ${fbMsg}`);
+  }
+}
+
+// ============================
+// Token Permission Check
+// ============================
+
+/**
+ * Check token có quyền gì — debug helper.
+ * Returns array of permissions strings.
+ */
+export async function checkTokenPermissions(accessToken) {
+  try {
+    const resp = await axios.get(`${FB_API_BASE}/${FB_API_VERSION}/me/permissions`, {
+      params: { access_token: accessToken },
+      timeout: 10000,
+    });
+    return (resp.data?.data || [])
+      .filter(p => p.status === 'granted')
+      .map(p => p.permission);
+  } catch (err) {
+    // Page tokens không support /me/permissions; thử debug_token thay
+    try {
+      const debugResp = await axios.get(`${FB_API_BASE}/${FB_API_VERSION}/debug_token`, {
+        params: { input_token: accessToken, access_token: accessToken },
+        timeout: 10000,
+      });
+      return debugResp.data?.data?.scopes || [];
+    } catch {
+      throw new Error(err.response?.data?.error?.message || err.message);
+    }
   }
 }
 

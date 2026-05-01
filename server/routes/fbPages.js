@@ -165,6 +165,30 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// GET /api/fb-pages/:id/permissions — kiểm tra token có quyền gì
+router.get('/:id/permissions', async (req, res) => {
+  try {
+    const page = await FbPage.findByPk(req.params.id);
+    if (!page) return res.status(404).json({ success: false, error: 'Page not found' });
+
+    const { checkTokenPermissions } = await import('../services/facebookService.js');
+    const perms = await checkTokenPermissions(page.access_token);
+    const required = ['pages_manage_posts', 'pages_read_engagement', 'pages_show_list'];
+    const missing = required.filter(p => !perms.includes(p));
+
+    res.json({
+      success: true,
+      page_name: page.name,
+      permissions: perms,
+      required,
+      missing,
+      ok: missing.length === 0,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // POST /api/fb-pages/:id/sync — re-sync page info from Facebook
 router.post('/:id/sync', async (req, res) => {
   try {
