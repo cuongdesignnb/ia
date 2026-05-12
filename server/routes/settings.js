@@ -27,6 +27,7 @@ const AUTO_STORY_KEYS = [
   'topic_suggestion_enabled',
   'topic_suggestion_cron',
   'topic_suggestion_batch_size',
+  'true_story_auto_count',
 ];
 
 /**

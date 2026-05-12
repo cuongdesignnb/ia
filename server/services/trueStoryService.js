@@ -50,13 +50,15 @@ const AUTO_TOPIC_POOL = [
 ];
 
 /**
- * Random pick 1 chủ đề. Có thể giới hạn theo content_type.
+ * Random pick 1 chủ đề. Có thể giới hạn theo content_type và loại trừ topic đã dùng.
  */
-export function pickAutoTopic(preferredContentType) {
-  const pool = preferredContentType
+export function pickAutoTopic(preferredContentType, excludeTopics = []) {
+  const excluded = new Set(excludeTopics);
+  let pool = preferredContentType
     ? AUTO_TOPIC_POOL.filter((p) => p.content_type === preferredContentType)
     : AUTO_TOPIC_POOL;
-  const candidates = pool.length ? pool : AUTO_TOPIC_POOL;
+  const remaining = pool.filter((p) => !excluded.has(p.topic));
+  const candidates = remaining.length ? remaining : (pool.length ? pool : AUTO_TOPIC_POOL);
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
 const isGPT5 = (m) => m && m.startsWith('gpt-5');
@@ -341,15 +343,14 @@ export async function fullGenerateTrueStory(payload) {
   };
 }
 
-/* ============================================================
- * AUTO MODE — không cần input, hệ thống tự bốc chủ đề và chạy hết
- * ============================================================ */
-export async function autoGenerateTrueStory(opts = {}) {
-  const { content_type, country, language = 'auto', target_audience, max_attempts = 3 } = opts;
-
+/**
+ * Tạo 1 bài hoàn chỉnh (brief + caption + image_plan) cho 1 chủ đề.
+ * Retry tối đa max_attempts lần nếu search/ideas fail.
+ */
+async function autoGenerateOne({ content_type, country, language, target_audience, max_attempts, excludeTopics }) {
   let lastError;
   for (let attempt = 1; attempt <= max_attempts; attempt++) {
-    const picked = pickAutoTopic(content_type);
+    const picked = pickAutoTopic(content_type, excludeTopics);
     console.log(`[TrueStory.auto] attempt ${attempt}/${max_attempts} — topic: "${picked.topic}"`);
     try {
       const result = await fullGenerateTrueStory({
@@ -360,17 +361,71 @@ export async function autoGenerateTrueStory(opts = {}) {
         count: 5,
         target_audience,
       });
-      return {
-        ...result,
-        auto_picked_topic: picked.topic,
-        auto_attempt: attempt,
-      };
+      return { ...result, auto_picked_topic: picked.topic, auto_attempt: attempt };
     } catch (err) {
       console.warn(`[TrueStory.auto] attempt ${attempt} failed: ${err.message}`);
       lastError = err;
     }
   }
   throw lastError || new Error('Auto generate thất bại sau nhiều lần thử');
+}
+
+/* ============================================================
+ * AUTO MODE — không cần input. Số lượng đọc từ setting `true_story_auto_count`.
+ * Trả về { drafts: [...], auto_count, used_setting }.
+ * ============================================================ */
+export async function autoGenerateTrueStory(opts = {}) {
+  const { content_type, country, language = 'auto', target_audience, max_attempts = 3 } = opts;
+
+  // Resolve count: body > setting > 1
+  let count = parseInt(opts.count);
+  let used_setting = false;
+  if (!count || isNaN(count) || count < 1) {
+    const setting = await getSetting('true_story_auto_count');
+    const fromSetting = parseInt(setting);
+    if (fromSetting && fromSetting >= 1) {
+      count = fromSetting;
+      used_setting = true;
+    } else {
+      count = 1;
+    }
+  }
+  count = Math.min(count, 5); // hard cap 5 để không bùng cost / timeout
+
+  const drafts = [];
+  const errors = [];
+  const usedTopics = new Set();
+
+  // Sinh tuần tự để mỗi bài có thể lấy 1 topic khác (no replacement)
+  for (let i = 0; i < count; i++) {
+    try {
+      const draft = await autoGenerateOne({
+        content_type,
+        country,
+        language,
+        target_audience,
+        max_attempts,
+        excludeTopics: [...usedTopics],
+      });
+      drafts.push(draft);
+      if (draft.auto_picked_topic) usedTopics.add(draft.auto_picked_topic);
+    } catch (err) {
+      errors.push({ index: i, message: err.message });
+    }
+  }
+
+  if (!drafts.length) {
+    const reason = errors.map((e) => e.message).join(' | ') || 'Unknown';
+    throw new Error('Không tạo được bài nào: ' + reason);
+  }
+
+  return {
+    drafts,
+    auto_count: drafts.length,
+    requested_count: count,
+    used_setting,
+    errors,
+  };
 }
 
 export default {

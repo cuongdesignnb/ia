@@ -22,7 +22,7 @@ import {
   getTrueStoryProviders, findTrueStoryIdeasAPI, generateTrueStoryBriefAPI,
   generateTrueStoryCaptionAPI, generateTrueStoryImagePlanAPI,
   autoGenerateTrueStoryAPI,
-  getAiProviders, generateImage,
+  getAiProviders, generateImage, getSettings,
   createPost, publishPost, publishDraft, publishScheduled,
 } from '../utils/api';
 import { TRUE_STORY_IMAGE_TEMPLATES, buildTrueStoryPrompt } from '../config/trueStoryImageTemplates';
@@ -92,6 +92,7 @@ export default function CreateTrueStoryPost() {
   const [scheduledAt, setScheduledAt] = useState('');
 
   const [busy, setBusy] = useState({});
+  const [autoCount, setAutoCount] = useState(1);
 
   const setBusyKey = (k, v) => setBusy((b) => ({ ...b, [k]: v }));
   const update = (p) => setInput((s) => ({ ...s, ...p }));
@@ -103,6 +104,11 @@ export default function CreateTrueStoryPost() {
       setProvidersDetail(p);
       setProvidersReady(!!p.any);
     }).catch(() => setProvidersReady(false));
+
+    getSettings().then((r) => {
+      const v = parseInt(r.data?.data?.auto_story?.true_story_auto_count?.value);
+      if (v && v >= 1) setAutoCount(Math.min(v, 5));
+    }).catch(() => {});
 
     getAiProviders().then((r) => {
       const m = r.data?.data?.models || { image: [] };
@@ -122,7 +128,28 @@ export default function CreateTrueStoryPost() {
 
   /* ============= ACTIONS ============= */
 
-  // AUTO MODE — 1 nút, không cần nhập gì, chạy full pipeline rồi nhảy thẳng đến preview
+  // Khi count>1, lưu mảng drafts để user duyệt
+  const [autoDrafts, setAutoDrafts] = useState([]);
+  const [selectedDraftIdx, setSelectedDraftIdx] = useState(0);
+
+  // Load draft vào state để chỉnh/đăng
+  const loadDraft = (d) => {
+    setIdeas([d.selected_idea]);
+    setSelectedIdeaId(d.selected_idea?.id);
+    setBrief(d.brief);
+    setCaption(d.caption);
+    setCaptionEdit(d.caption?.caption || '');
+    setImagePlan(d.image_plan);
+    setImageMode(d.image_plan?.recommended_mode || 'ai_illustration');
+    setImagePrompt(d.image_plan?.ai_image_prompt || '');
+    setSearchWarnings(d.warnings || []);
+    setImageFile(null);
+    setImageUrl('');
+    setImagePreview('');
+    if (d.auto_picked_topic) update({ topic: d.auto_picked_topic });
+  };
+
+  // AUTO MODE — 1 nút, không cần nhập gì. Số bài = setting `true_story_auto_count`.
   const runAuto = async () => {
     setBusyKey('auto', true);
     try {
@@ -132,28 +159,26 @@ export default function CreateTrueStoryPost() {
         language: input.language,
       });
       const d = res.data.data;
+      const drafts = d.drafts || [];
 
-      // Populate toàn bộ state như đã chạy từng bước
-      setIdeas(d.ideas || []);
-      setSelectedIdeaId(d.selected_idea?.id);
-      setBrief(d.brief);
-      const cap = d.caption;
-      setCaption(cap);
-      setCaptionEdit(cap?.caption || '');
-      const plan = d.image_plan;
-      setImagePlan(plan);
-      setImageMode(plan?.recommended_mode || 'ai_illustration');
-      setImagePrompt(plan?.ai_image_prompt || '');
-      setSearchWarnings(d.warnings || []);
-
-      // Cho UI biết auto đã pick chủ đề gì
-      if (d.auto_picked_topic) {
-        toast.info(`Auto đã chọn chủ đề: "${d.auto_picked_topic}"`);
-        update({ topic: d.auto_picked_topic });
+      if (!drafts.length) {
+        toast.warning('Auto không tạo được bài nào');
+        return;
       }
 
-      // Nhảy thẳng đến step Hình ảnh để user xác nhận / tạo ảnh, rồi đăng
-      setStep(4);
+      setAutoDrafts(drafts);
+      setSelectedDraftIdx(0);
+
+      if (drafts.length === 1) {
+        // 1 bài → load thẳng và nhảy tới Hình ảnh
+        loadDraft(drafts[0]);
+        toast.info(`Auto đã tạo bài: "${drafts[0].auto_picked_topic}"`);
+        setStep(4);
+      } else {
+        // Nhiều bài → ở lại step 1 để user duyệt grid
+        toast.success(`Auto đã tạo ${drafts.length} bài. Chọn 1 để xem chi tiết.`);
+        setStep(1);
+      }
     } catch (e) {
       toast.error('Auto thất bại: ' + (e.response?.data?.error || e.message));
     } finally {
@@ -376,10 +401,12 @@ export default function CreateTrueStoryPost() {
           </div>
           <button className="btn btn-primary btn-lg" onClick={runAuto} disabled={busy.auto}>
             {busy.auto
-              ? <><Loader size={16} className="spin-icon" /> Đang tạo bài tự động… (~1-2 phút)</>
-              : <><Sparkles size={16} /> 🤖 Tạo bài tự động ngay</>}
+              ? <><Loader size={16} className="spin-icon" /> Đang tạo {autoCount} bài tự động… (~{autoCount} × 1-2 phút)</>
+              : <><Sparkles size={16} /> 🤖 Tạo {autoCount > 1 ? `${autoCount} ` : ''}bài tự động ngay</>}
           </button>
-          <p className="ts-auto-hint">Hoặc cuộn xuống để tự nhập chủ đề.</p>
+          <p className="ts-auto-hint">
+            Số bài/lượt bấm: <strong>{autoCount}</strong> — chỉnh trong <a href="/settings">Cài đặt</a>. Hoặc cuộn xuống để tự nhập chủ đề.
+          </p>
         </div>
       )}
 
@@ -424,7 +451,34 @@ export default function CreateTrueStoryPost() {
         {/* Step 1: Ideas */}
         {step === 1 && (
           <div>
-            {!ideas.length && (
+            {/* AUTO drafts — khi user bấm nút Auto và setting > 1 */}
+            {autoDrafts.length > 1 && (
+              <div className="ts-auto-drafts">
+                <h3>{autoDrafts.length} bài AI vừa tạo — chọn 1 để xem / đăng</h3>
+                <div className="ts-drafts-grid">
+                  {autoDrafts.map((d, i) => (
+                    <div key={i} className={`ts-draft-card ${selectedDraftIdx === i ? 'selected' : ''}`}>
+                      <div className="ts-draft-head">
+                        <h4>{d.caption?.title || d.selected_idea?.title}</h4>
+                        <VerifBadge status={d.verification_status} />
+                      </div>
+                      <p className="ts-draft-topic">📌 {d.auto_picked_topic}</p>
+                      <p className="ts-draft-hook">"{d.caption?.hook || d.selected_idea?.suggested_hook}"</p>
+                      <p className="ts-draft-summary">{d.brief?.summary}</p>
+                      <div className="ts-draft-meta">
+                        <span>{d.sources?.length || 0} nguồn</span>
+                        {d.warnings?.length > 0 && <span className="ts-warn-inline">⚠ {d.warnings.length} cảnh báo</span>}
+                      </div>
+                      <button className="btn btn-primary btn-sm" onClick={() => { setSelectedDraftIdx(i); loadDraft(d); setStep(4); }}>
+                        Chọn bài này → Hình ảnh
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!ideas.length && !autoDrafts.length && (
               <button className="btn btn-primary" onClick={runFindIdeas} disabled={busy.ideas}>
                 {busy.ideas ? <><Loader size={14} className="spin-icon" /> Đang tìm câu chuyện thật...</> : <><Sparkles size={14} /> Tìm câu chuyện có thật</>}
               </button>

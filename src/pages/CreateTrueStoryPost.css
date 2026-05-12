@@ -92,6 +92,26 @@
 .ts-source-link:hover { background: rgba(255,255,255,.1); }
 .ts-idea-pick { align-self: flex-start; margin-top: 4px; }
 
+/* Auto drafts grid (khi setting batch > 1) */
+.ts-auto-drafts h3 { margin: 0 0 12px; }
+.ts-drafts-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 12px;
+}
+.ts-draft-card {
+  background: var(--bg-secondary, rgba(255,255,255,.04));
+  border: 1px solid var(--border, rgba(255,255,255,.08));
+  border-radius: 12px; padding: 14px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ts-draft-card.selected { border-color: var(--primary, #6366f1); background: rgba(99,102,241,.08); }
+.ts-draft-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.ts-draft-head h4 { margin: 0; font-size: .95rem; line-height: 1.3; }
+.ts-draft-topic { margin: 0; font-size: .75rem; color: var(--text-muted, #94a3b8); }
+.ts-draft-hook { margin: 0; font-style: italic; color: var(--primary, #6366f1); font-size: .85rem; }
+.ts-draft-summary { margin: 0; font-size: .8rem; color: var(--text-secondary, #cbd5e1); line-height: 1.5; }
+.ts-draft-meta { display: flex; gap: 10px; font-size: .75rem; color: var(--text-muted, #94a3b8); }
+
 /* Brief */
 .ts-brief-summary {
   font-size: .95rem; line-height: 1.6;

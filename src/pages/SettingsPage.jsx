@@ -38,6 +38,7 @@ export default function SettingsPage({ onLogout }) {
     unsplash_api_key: '',
     topic_suggestion_enabled: 'true',
     topic_suggestion_batch_size: '5',
+    true_story_auto_count: '1',
   });
   const [showMediaLib, setShowMediaLib] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
@@ -330,6 +331,12 @@ export default function SettingsPage({ onLogout }) {
             <input type="number" min="1" max="20" value={autoForm.topic_suggestion_batch_size}
               onChange={e => setAutoForm(f => ({ ...f, topic_suggestion_batch_size: e.target.value }))} />
             <small style={{ color: '#888', marginTop: 4 }}>Áp dụng cho cả cron và bấm tay. Dùng cùng model với "AI Model mặc định" ở trên (gpt-5.5 → ~$0.05/lần, gpt-5.4-mini → ~$0.01/lần).</small>
+          </div>
+          <div className="form-group">
+            <label>Số bài mỗi lần bấm "Tạo bài tự động" (True Story)</label>
+            <input type="number" min="1" max="5" value={autoForm.true_story_auto_count}
+              onChange={e => setAutoForm(f => ({ ...f, true_story_auto_count: e.target.value }))} />
+            <small style={{ color: '#888', marginTop: 4 }}>Áp dụng cho nút Auto trong trang "Tạo bài chuyện có thật". Max 5 để tránh tốn quá nhiều token / thời gian. Mỗi bài ≈ 30-60s search + 3 AI calls.</small>
           </div>
           <div className="settings-divider" />
           <div className="form-group">
