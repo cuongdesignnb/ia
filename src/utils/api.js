@@ -126,6 +126,8 @@ export const generateTrueStoryImagePlanAPI = (payload) =>
   api.post('/true-stories/image-plan', payload, { timeout: 120000 });
 export const fullGenerateTrueStoryAPI = (payload) =>
   api.post('/true-stories/full-generate', payload, { timeout: 480000 });
+export const autoGenerateTrueStoryAPI = (payload = {}) =>
+  api.post('/true-stories/auto-generate', payload, { timeout: 600000 });
 
 // True Stories — legacy job-based (auto-content pipeline)
 export const createStoryJob = (data) => api.post('/true-stories/jobs', data, { timeout: 300000 });

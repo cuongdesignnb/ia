@@ -21,6 +21,7 @@ import {
 import {
   getTrueStoryProviders, findTrueStoryIdeasAPI, generateTrueStoryBriefAPI,
   generateTrueStoryCaptionAPI, generateTrueStoryImagePlanAPI,
+  autoGenerateTrueStoryAPI,
   getAiProviders, generateImage,
   createPost, publishPost, publishDraft, publishScheduled,
 } from '../utils/api';
@@ -120,6 +121,45 @@ export default function CreateTrueStoryPost() {
   );
 
   /* ============= ACTIONS ============= */
+
+  // AUTO MODE — 1 nút, không cần nhập gì, chạy full pipeline rồi nhảy thẳng đến preview
+  const runAuto = async () => {
+    setBusyKey('auto', true);
+    try {
+      const res = await autoGenerateTrueStoryAPI({
+        content_type: input.content_type || undefined,
+        country: input.country || undefined,
+        language: input.language,
+      });
+      const d = res.data.data;
+
+      // Populate toàn bộ state như đã chạy từng bước
+      setIdeas(d.ideas || []);
+      setSelectedIdeaId(d.selected_idea?.id);
+      setBrief(d.brief);
+      const cap = d.caption;
+      setCaption(cap);
+      setCaptionEdit(cap?.caption || '');
+      const plan = d.image_plan;
+      setImagePlan(plan);
+      setImageMode(plan?.recommended_mode || 'ai_illustration');
+      setImagePrompt(plan?.ai_image_prompt || '');
+      setSearchWarnings(d.warnings || []);
+
+      // Cho UI biết auto đã pick chủ đề gì
+      if (d.auto_picked_topic) {
+        toast.info(`Auto đã chọn chủ đề: "${d.auto_picked_topic}"`);
+        update({ topic: d.auto_picked_topic });
+      }
+
+      // Nhảy thẳng đến step Hình ảnh để user xác nhận / tạo ảnh, rồi đăng
+      setStep(4);
+    } catch (e) {
+      toast.error('Auto thất bại: ' + (e.response?.data?.error || e.message));
+    } finally {
+      setBusyKey('auto', false);
+    }
+  };
 
   const runFindIdeas = async () => {
     if (!input.topic.trim()) return toast.warning('Nhập chủ đề trước');
@@ -323,6 +363,25 @@ export default function CreateTrueStoryPost() {
           <div key={i} className={`wizard-step ${i === step ? 'active' : ''} ${i < step ? 'done' : ''}`} onClick={() => setStep(i)}>{s}</div>
         ))}
       </div>
+
+      {/* AUTO MODE — banner ở mọi step 0 */}
+      {step === 0 && (
+        <div className="card ts-auto-card">
+          <div className="ts-auto-head">
+            <Sparkles size={20} />
+            <div>
+              <h3>Tạo bài tự động</h3>
+              <p>Không cần nhập gì — hệ thống tự bốc chủ đề, tìm câu chuyện thật, viết caption và lên kế hoạch ảnh.</p>
+            </div>
+          </div>
+          <button className="btn btn-primary btn-lg" onClick={runAuto} disabled={busy.auto}>
+            {busy.auto
+              ? <><Loader size={16} className="spin-icon" /> Đang tạo bài tự động… (~1-2 phút)</>
+              : <><Sparkles size={16} /> 🤖 Tạo bài tự động ngay</>}
+          </button>
+          <p className="ts-auto-hint">Hoặc cuộn xuống để tự nhập chủ đề.</p>
+        </div>
+      )}
 
       <div className="card step-content">
         {/* Step 0 */}

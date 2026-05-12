@@ -27,6 +27,38 @@ import {
 } from '../prompts/trueStoryPrompts.js';
 
 const OPENAI_FALLBACKS = ['gpt-5.5', 'gpt-5.4-mini', 'gpt-4o-mini'];
+
+/**
+ * Pool chủ đề cho chế độ AUTO — user không cần nhập gì.
+ * Mỗi entry là 1 chủ đề tiếng Việt + content_type tương ứng.
+ */
+const AUTO_TOPIC_POOL = [
+  { topic: 'vụ mất tích bí ẩn có thật', content_type: 'missing' },
+  { topic: 'người mất tích không lời giải', content_type: 'missing' },
+  { topic: 'kỳ án chưa có lời giải', content_type: 'cold_case' },
+  { topic: 'vụ án bí ẩn nhất thế kỷ', content_type: 'cold_case' },
+  { topic: 'sự kiện lịch sử kỳ lạ ít người biết', content_type: 'strange_history' },
+  { topic: 'chương lịch sử bị lãng quên', content_type: 'strange_history' },
+  { topic: 'khám phá khoa học gây sốc', content_type: 'discovery' },
+  { topic: 'hiện tượng tự nhiên chưa giải thích', content_type: 'discovery' },
+  { topic: 'phát hiện khảo cổ kỳ lạ', content_type: 'discovery' },
+  { topic: 'nhân vật có số phận đặc biệt', content_type: 'character' },
+  { topic: 'người sống sót kỳ diệu', content_type: 'character' },
+  { topic: 'câu chuyện cảm động có thật', content_type: 'emotional' },
+  { topic: 'tin lạ thế giới có thật', content_type: 'weird_world' },
+  { topic: 'sự trùng hợp kỳ lạ trong lịch sử', content_type: 'weird_world' },
+];
+
+/**
+ * Random pick 1 chủ đề. Có thể giới hạn theo content_type.
+ */
+export function pickAutoTopic(preferredContentType) {
+  const pool = preferredContentType
+    ? AUTO_TOPIC_POOL.filter((p) => p.content_type === preferredContentType)
+    : AUTO_TOPIC_POOL;
+  const candidates = pool.length ? pool : AUTO_TOPIC_POOL;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
 const isGPT5 = (m) => m && m.startsWith('gpt-5');
 
 async function getOpenAI() {
@@ -309,10 +341,44 @@ export async function fullGenerateTrueStory(payload) {
   };
 }
 
+/* ============================================================
+ * AUTO MODE — không cần input, hệ thống tự bốc chủ đề và chạy hết
+ * ============================================================ */
+export async function autoGenerateTrueStory(opts = {}) {
+  const { content_type, country, language = 'auto', target_audience, max_attempts = 3 } = opts;
+
+  let lastError;
+  for (let attempt = 1; attempt <= max_attempts; attempt++) {
+    const picked = pickAutoTopic(content_type);
+    console.log(`[TrueStory.auto] attempt ${attempt}/${max_attempts} — topic: "${picked.topic}"`);
+    try {
+      const result = await fullGenerateTrueStory({
+        topic: picked.topic,
+        content_type: content_type || picked.content_type,
+        country: country || 'worldwide',
+        language,
+        count: 5,
+        target_audience,
+      });
+      return {
+        ...result,
+        auto_picked_topic: picked.topic,
+        auto_attempt: attempt,
+      };
+    } catch (err) {
+      console.warn(`[TrueStory.auto] attempt ${attempt} failed: ${err.message}`);
+      lastError = err;
+    }
+  }
+  throw lastError || new Error('Auto generate thất bại sau nhiều lần thử');
+}
+
 export default {
   findTrueStoryIdeas,
   generateTrueStoryBrief,
   generateFacebookCaptionFromTrueStory,
   generateTrueStoryImagePlan,
   fullGenerateTrueStory,
+  autoGenerateTrueStory,
+  pickAutoTopic,
 };

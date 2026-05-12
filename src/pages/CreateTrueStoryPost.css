@@ -10,6 +10,19 @@
   font-size: .8rem;
 }
 
+/* Auto card */
+.ts-auto-card {
+  background: linear-gradient(135deg, rgba(99,102,241,.18), rgba(168,85,247,.12));
+  border: 1px solid rgba(99,102,241,.35);
+  padding: 20px 24px; margin-bottom: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.ts-auto-head { display: flex; gap: 12px; align-items: flex-start; color: var(--primary, #6366f1); }
+.ts-auto-head h3 { margin: 0 0 4px; color: var(--text-primary, white); }
+.ts-auto-head p { margin: 0; font-size: .85rem; color: var(--text-secondary, #cbd5e1); }
+.ts-auto-card .btn-lg { padding: 12px 24px; font-size: 1rem; align-self: flex-start; }
+.ts-auto-hint { margin: 0; font-size: .8rem; color: var(--text-muted, #94a3b8); }
+
 /* Error gate */
 .ts-error-big {
   text-align: center; padding: 40px 20px;

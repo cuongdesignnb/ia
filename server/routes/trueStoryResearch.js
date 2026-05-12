@@ -23,6 +23,7 @@ import {
   generateFacebookCaptionFromTrueStory,
   generateTrueStoryImagePlan,
   fullGenerateTrueStory,
+  autoGenerateTrueStory,
 } from '../services/trueStoryService.js';
 
 const router = Router();
@@ -62,5 +63,8 @@ router.post('/caption', wrap(generateFacebookCaptionFromTrueStory));
 router.post('/image-plan', wrap(generateTrueStoryImagePlan));
 
 router.post('/full-generate', wrap(fullGenerateTrueStory));
+
+// AUTO MODE — user không nhập gì, hệ thống tự bốc chủ đề + chạy full pipeline
+router.post('/auto-generate', wrap(autoGenerateTrueStory));
 
 export default router;
