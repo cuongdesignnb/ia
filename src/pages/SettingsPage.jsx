@@ -17,6 +17,11 @@ export default function SettingsPage({ onLogout }) {
     fb_access_token: '',
     fb_app_id: '',
     fb_app_secret: '',
+    tavily_api_key: '',
+    serpapi_api_key: '',
+    google_search_api_key: '',
+    google_search_cx: '',
+    bing_search_api_key: '',
   });
   const [showKeys, setShowKeys] = useState({});
   const [saving, setSaving] = useState(false);
@@ -88,7 +93,7 @@ export default function SettingsPage({ onLogout }) {
     try {
       await updateSettings(toSend);
       toast.success('Cài đặt đã được lưu!');
-      setFormData({ openai_api_key: '', google_ai_api_key: '', fb_page_id: '', fb_access_token: '', fb_app_id: '', fb_app_secret: '' });
+      setFormData({ openai_api_key: '', google_ai_api_key: '', fb_page_id: '', fb_access_token: '', fb_app_id: '', fb_app_secret: '', tavily_api_key: '', serpapi_api_key: '', google_search_api_key: '', google_search_cx: '', bing_search_api_key: '' });
       loadSettings();
       loadStatus();
     } catch (err) {
@@ -147,8 +152,10 @@ export default function SettingsPage({ onLogout }) {
     setAutoSaving(false);
   };
 
+  const SEARCH_KEY_SET = new Set(['tavily_api_key', 'serpapi_api_key', 'google_search_api_key', 'google_search_cx', 'bing_search_api_key']);
   const renderKeyField = (key, label, placeholder) => {
-    const info = settings?.[key.startsWith('fb_') ? 'facebook' : 'ai']?.[key];
+    const group = key.startsWith('fb_') ? 'facebook' : SEARCH_KEY_SET.has(key) ? 'search_api' : 'ai';
+    const info = settings?.[group]?.[key];
     return (
       <div className="form-group">
         <label>{label}</label>
@@ -240,6 +247,24 @@ export default function SettingsPage({ onLogout }) {
           </p>
           {renderKeyField('fb_app_id', 'Facebook App ID', 'Nhập App ID...')}
           {renderKeyField('fb_app_secret', 'Facebook App Secret', 'Nhập App Secret...')}
+        </div>
+
+        {/* Search API — cho luồng True Story tự tìm chuyện thật */}
+        <div className="card settings-section">
+          <h3><Sparkles size={18} /> Search API (tìm câu chuyện thật)</h3>
+          <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+            Cần ít nhất <strong>1</strong> trong các provider sau để trang "Tạo bài chuyện có thật" hoạt động. Khuyến nghị Tavily (1000 req/tháng miễn phí).
+          </p>
+          {renderKeyField('tavily_api_key', 'Tavily API Key', 'Tavily — đăng ký tại tavily.com')}
+          {renderKeyField('serpapi_api_key', 'SerpAPI Key', 'SerpAPI — serpapi.com')}
+          <div className="settings-divider" />
+          <p style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+            Google Custom Search cần CẢ HAI: API Key + Search Engine ID (cx). Lấy ở <a href="https://programmablesearchengine.google.com/" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>programmablesearchengine.google.com</a>.
+          </p>
+          {renderKeyField('google_search_api_key', 'Google Search API Key', 'AIzaSy...')}
+          {renderKeyField('google_search_cx', 'Google Search CX (Engine ID)', 'cx ID dạng 0123abc:xyz')}
+          <div className="settings-divider" />
+          {renderKeyField('bing_search_api_key', 'Bing Search API Key', 'Bing Web Search v7 key')}
         </div>
 
         {/* Auto True Story */}

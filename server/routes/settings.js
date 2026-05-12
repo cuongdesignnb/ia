@@ -11,6 +11,15 @@ router.use(requireAuth);
 // Sensitive keys — mask these when returning to frontend
 const SENSITIVE_KEYS = ['admin_password'];
 
+// Search API keys (cho true-story research)
+const SEARCH_API_KEYS = [
+  'tavily_api_key',
+  'serpapi_api_key',
+  'google_search_api_key',
+  'google_search_cx',
+  'bing_search_api_key',
+];
+
 // Auto Story keys (non-sensitive — value returned as-is for editing)
 const AUTO_STORY_KEYS = [
   'auto_story_enabled',
@@ -58,12 +67,42 @@ router.get('/', async (req, res) => {
         fb_app_secret: { value: '', masked: maskValue('fb_app_secret', settings.fb_app_secret), configured: !!settings.fb_app_secret },
       },
       auto_story: {},
+      search_api: {},
     };
 
     // Auto Story group — return raw values (not sensitive enough to mask, frontend cần để edit)
     for (const k of AUTO_STORY_KEYS) {
       const v = settings[k];
       groups.auto_story[k] = { value: v ?? '', configured: !!v };
+    }
+
+    // Search API group — masked (sensitive)
+    for (const k of SEARCH_API_KEYS) {
+      const v = settings[k];
+      groups.search_api[k] = {
+        value: '',
+        masked: v ? maskValue(k, v) : '',
+        configured: !!v,
+        source: v ? 'db' : null,
+      };
+    }
+    // .env fallback cho search keys
+    const searchEnvMap = {
+      tavily_api_key: 'TAVILY_API_KEY',
+      serpapi_api_key: 'SERPAPI_API_KEY',
+      google_search_api_key: 'GOOGLE_SEARCH_API_KEY',
+      google_search_cx: 'GOOGLE_SEARCH_CX',
+      bing_search_api_key: 'BING_SEARCH_API_KEY',
+    };
+    for (const [sk, ek] of Object.entries(searchEnvMap)) {
+      if (!groups.search_api[sk].configured) {
+        const envVal = process.env[ek];
+        if (envVal && !envVal.startsWith('your_')) {
+          groups.search_api[sk].configured = true;
+          groups.search_api[sk].masked = maskValue(sk, envVal) + ' (.env)';
+          groups.search_api[sk].source = 'env';
+        }
+      }
     }
 
     // Check .env fallbacks
@@ -114,6 +153,8 @@ router.put('/', async (req, res) => {
     };
     // Auto Story keys — group 'auto_story'
     for (const k of AUTO_STORY_KEYS) allowedKeys[k] = 'auto_story';
+    // Search API keys — group 'search_api'
+    for (const k of SEARCH_API_KEYS) allowedKeys[k] = 'search_api';
 
     let updated = 0;
     const changedKeys = new Set();
