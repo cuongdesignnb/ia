@@ -53,10 +53,24 @@ export const cancelPost = (id) => api.post(`/posts/${id}/cancel`);
 // Styles
 export const getStyles = () => api.get('/styles');
 
-// AI
+// AI (legacy — luồng tạo bài thường)
 export const generateCaption = (data) => api.post('/ai/caption', data, { timeout: 60000 });
 export const generateImage = (data) => api.post('/ai/image', data, { timeout: 300000 }); // 5 phút cho GPT Image 2
 export const getAiProviders = () => api.get('/ai/providers');
+
+// AI — Story Viral pipeline (chuyện có thật / bí ẩn / điều tra)
+export const generateStoryBrief = (payload) =>
+  api.post('/ai/story-viral/brief', payload, { timeout: 120000 });
+export const generateStoryAngles = (brief) =>
+  api.post('/ai/story-viral/angles', { brief }, { timeout: 120000 });
+export const generateStoryCaption = (payload) =>
+  api.post('/ai/story-viral/caption', payload, { timeout: 120000 });
+export const generateStoryImagePlan = (payload) =>
+  api.post('/ai/story-viral/image-plan', payload, { timeout: 120000 });
+export const qualityCheckStoryPost = (payload) =>
+  api.post('/ai/story-viral/quality-check', payload, { timeout: 120000 });
+export const generateFullViralStory = (payload) =>
+  api.post('/ai/story-viral/full-generate', payload, { timeout: 300000 });
 
 // Facebook (legacy)
 export const getFbStatus = () => api.get('/facebook/status');

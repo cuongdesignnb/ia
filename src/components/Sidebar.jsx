@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, PlusCircle, FileText, Settings, Zap, Globe, Bot, CheckSquare, Image } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, FileText, Settings, Zap, Globe, Bot, CheckSquare, Image, BookOpen } from 'lucide-react';
 import PageSwitcher from './PageSwitcher';
 import './Sidebar.css';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tổng quan' },
   { to: '/auto-content', icon: Bot, label: 'Auto Content' },
+  { to: '/create-story', icon: BookOpen, label: 'Tạo bài kể chuyện' },
   { to: '/create', icon: PlusCircle, label: 'Tạo bài viết' },
   { to: '/posts', icon: FileText, label: 'Quản lý bài viết' },
   { to: '/pages', icon: Globe, label: 'Quản lý Pages' },

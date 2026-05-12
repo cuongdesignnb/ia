@@ -21,6 +21,7 @@ import mediaRoutes from './routes/media.js';
 import trueStoryRoutes from './routes/trueStories.js';
 import generatedPostRoutes from './routes/generatedPosts.js';
 import topicSuggestionRoutes from './routes/topicSuggestions.js';
+import storyViralRoutes from './routes/storyViral.js';
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ app.use('/api/fb-pages', fbPagesRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/styles', styleRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/ai/story-viral', storyViralRoutes);
 app.use('/api/facebook', facebookRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/true-stories', trueStoryRoutes);

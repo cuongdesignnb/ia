@@ -2,124 +2,24 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Send, ChevronRight, ChevronLeft, Upload, Clock, Loader, Globe, Wand2, ImagePlus, X, Edit3, LayoutGrid, FileText, CalendarClock, Eye } from 'lucide-react';
 import { getStyles, generateCaption, generateImage, createPost, getAiProviders, publishPost, publishDraft, publishScheduled } from '../utils/api';
+import { IMAGE_TEMPLATES as STORY_IMAGE_TEMPLATES } from '../config/imageTemplates';
 import { usePageContext } from '../contexts/PageContext';
 import { useToast } from '../components/Toast';
 import './CreatePost.css';
 
 const STEPS = ['Phong cách', 'Nội dung', 'Hình ảnh', 'Xem trước'];
 
-// ==========================================
-// MẪU ẢNH — Chuyên tin tức / báo chí / sản phẩm
-// ==========================================
-const IMAGE_TEMPLATES = [
-  // --- TIN TỨC / BÁO CHÍ ---
-  {
-    id: 'breaking-news',
-    name: 'Breaking News',
-    icon: '🚨',
-    category: 'news',
-    desc: 'Tin nóng, khẩn cấp, nổi bật',
-    prompt: 'Create a dramatic breaking news editorial image about "{{product}}". Dark cinematic background, bold red and white headline text overlay in Vietnamese, urgent atmosphere, photojournalistic style, dramatic lighting, TV news broadcast quality, 4k resolution',
-  },
-  {
-    id: 'news-infographic',
-    name: 'Infographic Tin tức',
-    icon: '📊',
-    category: 'news',
-    desc: 'Đồ hoạ thông tin dạng báo chí',
-    prompt: 'Create a detailed news infographic about "{{product}}" in dark theme style. Include data visualization panels, icon-based statistics, timeline or process diagram, modern flat design, Vietnamese text labels, professional data journalism layout with dark navy/black background and bright accent colors, 4k quality',
-  },
-  {
-    id: 'clickbait-headline',
-    name: 'Giật tít / Clickbait',
-    icon: '⚡',
-    category: 'news',
-    desc: 'Tiêu đề giật gân, thu hút click cực mạnh',
-    prompt: 'Create a sensational viral Facebook news thumbnail about "{{product}}". Dramatic photo with bold Vietnamese headline text overlay in large white and yellow font, dark gradient overlay on bottom half, shocked/dramatic facial expressions or intense scene, red circle highlights, arrow annotations, maximum visual impact, clickbait style, 4k quality',
-  },
-  {
-    id: 'investigation',
-    name: 'Phóng sự Điều tra',
-    icon: '🔍',
-    category: 'news',
-    desc: 'Phong cách điều tra, phơi bày sự thật',
-    prompt: 'Create an investigative journalism cover image about "{{product}}". Dark moody atmosphere, spotlight effect, detective/investigation theme, document papers scattered, magnifying glass, red string board aesthetic, mysterious dramatic lighting, Vietnamese headline text, noir style, 4k quality',
-  },
-  {
-    id: 'hot-event',
-    name: 'Sự kiện Nóng',
-    icon: '🔥',
-    category: 'news',
-    desc: 'Sự kiện đang hot, trending',
-    prompt: 'Create an intense trending event news image about "{{product}}". Split-screen or multi-panel layout showing key moments, fire/heat visual effects, bold Vietnamese text overlay with glowing effect, breaking news ticker style bar at bottom, intense dramatic atmosphere, social media viral post quality, 4k resolution',
-  },
-  {
-    id: 'tech-news',
-    name: 'Tin Công nghệ',
-    icon: '💻',
-    category: 'news',
-    desc: 'Tin tức công nghệ, startup, AI',
-    prompt: 'Create a sleek technology news cover image about "{{product}}". Futuristic dark blue/purple gradient background, holographic elements, circuit board patterns, glowing neon accents, modern sans-serif Vietnamese headline, tech-forward editorial design, digital data visualization overlay, 4k quality',
-  },
-  {
-    id: 'data-stats',
-    name: 'Tổng hợp Số liệu',
-    icon: '📈',
-    category: 'news',
-    desc: 'Biểu đồ, số liệu, thống kê nổi bật',
-    prompt: 'Create a data-driven statistics graphic about "{{product}}". Dark background with glowing charts, bar graphs, percentage numbers in large bold font, key metrics highlighted in colored boxes, Vietnamese labels, professional data journalism style similar to Bloomberg or Reuters infographics, 4k quality',
-  },
-  {
-    id: 'quote-person',
-    name: 'Trích dẫn Nhân vật',
-    icon: '💬',
-    category: 'news',
-    desc: 'Quote nhân vật quan trọng, chuyên gia',
-    prompt: 'Create an editorial quote card about "{{product}}". Professional portrait silhouette on one side, large quotation marks, Vietnamese quote text in elegant serif font, gradient dark background, subtle texture overlay, news interview style, authoritative and credible design, 4k quality',
-  },
-  {
-    id: 'comparison',
-    name: 'So sánh / Đối chiếu',
-    icon: '⚖️',
-    category: 'news',
-    desc: 'So sánh 2 bên, đối chiếu thông tin',
-    prompt: 'Create a VS comparison infographic about "{{product}}". Split screen design with two contrasting sides, versus symbol in center, key differences listed on each side, dark dramatic background, bold Vietnamese text, competitive analysis style, sports matchup aesthetic, 4k quality',
-  },
-  // --- SẢN PHẨM / THƯƠNG MẠI ---
-  {
-    id: 'product-studio',
-    name: 'Ảnh SP Studio',
-    icon: '📸',
-    category: 'product',
-    desc: 'Nền trắng, ánh sáng studio',
-    prompt: 'Professional product photography of {{product}}, clean white background, studio lighting, commercial style, 4k quality, high detail',
-  },
-  {
-    id: 'sale-banner',
-    name: 'Banner Sale',
-    icon: '🏷️',
-    category: 'product',
-    desc: 'Banner khuyến mãi nổi bật',
-    prompt: 'Eye-catching sale promotion banner for {{product}}, bold red and gold color scheme, Vietnamese text "GIẢM GIÁ SỐC", modern typography, urgency design, vibrant layout, 4k quality',
-  },
-  {
-    id: 'hero-banner',
-    name: 'Hero Banner FB',
-    icon: '🖼️',
-    category: 'product',
-    desc: 'Banner ngang cho Facebook',
-    prompt: 'Wide hero banner for Facebook post featuring {{product}}, cinematic composition, dramatic lighting, premium brand feel, landscape 16:9 ratio, 4k quality',
-  },
-  // --- TUỲ CHỈNH ---
-  {
-    id: 'custom',
-    name: 'Tuỳ chỉnh',
-    icon: '✏️',
-    category: 'custom',
-    desc: 'Tự viết prompt theo ý bạn',
-    prompt: '',
-  },
-];
+// Một template "custom" để cho phép viết tay prompt
+const CUSTOM_TEMPLATE = {
+  id: 'custom',
+  name: 'Tuỳ chỉnh',
+  icon: '✏️',
+  description: 'Tự viết prompt theo ý bạn.',
+  prompt_template: '',
+};
+
+// Tận dụng config tách riêng → không hard-code prompt trong component
+const IMAGE_TEMPLATES = [...STORY_IMAGE_TEMPLATES.filter((t) => t.id !== 'upload-real-image'), CUSTOM_TEMPLATE];
 
 export default function CreatePost() {
   const nav = useNavigate();
@@ -146,8 +46,7 @@ export default function CreatePost() {
   const [imgGenElapsed, setImgGenElapsed] = useState(0);
 
   // Image template
-  const [selectedTemplate, setSelectedTemplate] = useState('breaking-news');
-  const [templateFilter, setTemplateFilter] = useState('all');
+  const [selectedTemplate, setSelectedTemplate] = useState(IMAGE_TEMPLATES[0]?.id || 'custom');
   const [editablePrompt, setEditablePrompt] = useState('');
   const [showPromptEditor, setShowPromptEditor] = useState(false);
 
@@ -169,8 +68,8 @@ export default function CreatePost() {
   // Build prompt from template when product or template changes
   const buildPrompt = (templateId, product) => {
     const tpl = IMAGE_TEMPLATES.find(t => t.id === templateId);
-    if (!tpl || templateId === 'custom') return editablePrompt;
-    return tpl.prompt.replace(/\{\{product\}\}/g, product || 'sản phẩm');
+    if (!tpl || templateId === 'custom' || !tpl.prompt_template) return editablePrompt;
+    return tpl.prompt_template.replace(/\{\{product\}\}/g, product || 'chủ đề');
   };
 
   // Update editable prompt when template/product changes
@@ -192,29 +91,17 @@ export default function CreatePost() {
     }
   }, [step]);
 
-  // Auto match style → image template
+  // Auto match style → image template (dùng `recommended_for` của template mới)
   useEffect(() => {
-    if (form.style_id && selectedTemplate === 'breaking-news') {
-      const style = styles.find(s => s.id === form.style_id);
-      if (style?.slug) {
-        const slugMap = {
-          'breaking-news': 'breaking-news', 'clickbait': 'clickbait-headline',
-          'investigation': 'investigation', 'tech-news': 'tech-news',
-          'infographic': 'news-infographic', 'professional': 'product-studio',
-          'promotional': 'sale-banner',
-        };
-        const mapped = slugMap[style.slug];
-        if (mapped) setSelectedTemplate(mapped);
-      }
-    }
-  }, [form.style_id]);
+    if (!form.style_id) return;
+    const style = styles.find(s => s.id === form.style_id);
+    if (!style?.slug) return;
+    const matched = IMAGE_TEMPLATES.find(t => Array.isArray(t.recommended_for) && t.recommended_for.includes(style.slug));
+    if (matched) setSelectedTemplate(matched.id);
+  }, [form.style_id, styles]);
 
-  const filteredTemplates = templateFilter === 'all'
-    ? IMAGE_TEMPLATES
-    : IMAGE_TEMPLATES.filter(t => t.category === templateFilter);
-
+  const filteredTemplates = IMAGE_TEMPLATES;
   const selectedPage = pages.find(p => p.id === parseInt(form.fb_page_id));
-  const selectedStyle = styles.find(s => s.id === form.style_id);
 
   const handleGenerate = async () => {
     if (!form.product) return alert('Vui lòng nhập tên sản phẩm trước');
@@ -373,22 +260,7 @@ export default function CreatePost() {
             <div className="img-tpl-section">
               <div className="img-tpl-header">
                 <LayoutGrid size={16} />
-                <span>Chọn mẫu ảnh</span>
-                <div className="img-tpl-filters">
-                  {[
-                    { id: 'all', label: 'Tất cả' },
-                    { id: 'news', label: '📰 Tin tức' },
-                    { id: 'product', label: '📦 Sản phẩm' },
-                    { id: 'custom', label: '✏️ Tuỳ chỉnh' },
-                  ].map(f => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      className={`img-tpl-filter ${templateFilter === f.id ? 'active' : ''}`}
-                      onClick={() => setTemplateFilter(f.id)}
-                    >{f.label}</button>
-                  ))}
-                </div>
+                <span>Chọn mẫu ảnh (documentary / editorial)</span>
               </div>
               <div className="img-tpl-grid">
                 {filteredTemplates.map(t => (
@@ -397,7 +269,7 @@ export default function CreatePost() {
                     type="button"
                     className={`img-tpl-card ${selectedTemplate === t.id ? 'selected' : ''}`}
                     onClick={() => { setSelectedTemplate(t.id); setAutoGenTriggered(false); }}
-                    title={t.desc}
+                    title={t.description}
                   >
                     <span className="img-tpl-icon">{t.icon}</span>
                     <span className="img-tpl-name">{t.name}</span>
@@ -405,7 +277,7 @@ export default function CreatePost() {
                 ))}
               </div>
               <p className="img-tpl-desc">
-                {IMAGE_TEMPLATES.find(t => t.id === selectedTemplate)?.desc}
+                {IMAGE_TEMPLATES.find(t => t.id === selectedTemplate)?.description}
               </p>
             </div>
 

@@ -6,6 +6,7 @@ import { PageProvider } from './contexts/PageContext';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import CreatePost from './pages/CreatePost';
+import CreateViralStory from './pages/CreateViralStory';
 import PostList from './pages/PostList';
 import SettingsPage from './pages/SettingsPage';
 import FbPagesPage from './pages/FbPagesPage';
@@ -72,6 +73,7 @@ export default function App() {
               <Route path="/auto-content" element={<AutoContentPage />} />
               <Route path="/review/:id" element={<StoryReviewPage />} />
               <Route path="/create" element={<CreatePost />} />
+              <Route path="/create-story" element={<CreateViralStory />} />
               <Route path="/posts" element={<PostList />} />
               <Route path="/pages" element={<FbPagesPage />} />
               <Route path="/media" element={<MediaLibraryPage />} />
