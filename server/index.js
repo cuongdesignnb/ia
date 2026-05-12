@@ -22,6 +22,7 @@ import trueStoryRoutes from './routes/trueStories.js';
 import generatedPostRoutes from './routes/generatedPosts.js';
 import topicSuggestionRoutes from './routes/topicSuggestions.js';
 import storyViralRoutes from './routes/storyViral.js';
+import trueStoryResearchRoutes from './routes/trueStoryResearch.js';
 
 dotenv.config();
 
@@ -50,6 +51,9 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/ai/story-viral', storyViralRoutes);
 app.use('/api/facebook', facebookRoutes);
 app.use('/api/media', mediaRoutes);
+// Research router mount TRƯỚC để bắt /providers, /search, /ideas, /brief, /caption,
+// /image-plan, /full-generate trước khi rơi vào /:id của trueStoryRoutes.
+app.use('/api/true-stories', trueStoryResearchRoutes);
 app.use('/api/true-stories', trueStoryRoutes);
 app.use('/api/generated-posts', generatedPostRoutes);
 app.use('/api/topic-suggestions', topicSuggestionRoutes);

@@ -112,7 +112,22 @@ export const createMediaFolder = (data) => api.post('/media/folders', data);
 export const updateMediaFolder = (id, data) => api.put(`/media/folders/${id}`, data);
 export const deleteMediaFolder = (id) => api.delete(`/media/folders/${id}`);
 
-// True Stories
+// True Stories — research-based (AI tự tìm câu chuyện thật)
+export const getTrueStoryProviders = () => api.get('/true-stories/providers');
+export const searchTrueStoriesAPI = (payload) =>
+  api.post('/true-stories/search', payload, { timeout: 120000 });
+export const findTrueStoryIdeasAPI = (payload) =>
+  api.post('/true-stories/ideas', payload, { timeout: 240000 });
+export const generateTrueStoryBriefAPI = (payload) =>
+  api.post('/true-stories/brief', payload, { timeout: 180000 });
+export const generateTrueStoryCaptionAPI = (payload) =>
+  api.post('/true-stories/caption', payload, { timeout: 120000 });
+export const generateTrueStoryImagePlanAPI = (payload) =>
+  api.post('/true-stories/image-plan', payload, { timeout: 120000 });
+export const fullGenerateTrueStoryAPI = (payload) =>
+  api.post('/true-stories/full-generate', payload, { timeout: 480000 });
+
+// True Stories — legacy job-based (auto-content pipeline)
 export const createStoryJob = (data) => api.post('/true-stories/jobs', data, { timeout: 300000 });
 export const getStoryJobs = (params) => api.get('/true-stories/jobs', { params });
 export const getStoryJob = (id) => api.get(`/true-stories/jobs/${id}`);
